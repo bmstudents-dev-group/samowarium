@@ -53,7 +53,7 @@ def longPollUpdates(ackSeq):
     response = requests.get(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}")
     tree = ET.ElementTree(ET.fromstring(response.text))
     root = tree.getroot()
-    if(root != None):
+    if(root != None and "respSeq" in root.attrib):
         ackSeq = int(root.attrib["respSeq"])
     return ackSeq, response.text
 
