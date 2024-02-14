@@ -48,13 +48,33 @@ def getMails(first, last):
         mails.append(mail)
     return mails
 
-def longPollUpdates():
+def longPollUpdates(ackSeq):
     global session
-    ackSeq = 0
-    response = requests.post(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}", data = f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId()}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>')
-    return response.text
+    response = requests.get(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}")
+    tree = ET.ElementTree(ET.fromstring(response.text))
+    root = tree.getroot()
+    if(root != None):
+        ackSeq = int(root.attrib["respSeq"])
+    return ackSeq, response.text
 
-def getMail(uid):
+def getNewMails():
     global session
-    response = requests.post(f"https://student.bmstu.ru/Session/{session}/FORMAT/Samoware/INBOX-MM-1/{uid}")
+    response = requests.post(f"https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}",f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId()}"/></XIMSS>')
+    tree = ET.ElementTree(ET.fromstring(response.text))
+    mails = []
+    for element in tree.findall("folderReport"):
+        mail = {}
+        mail["uid"] = element.attrib["UID"]
+        mail["flags"] = element.find("FLAGS").text
+        mail["to_mail"] = element.find("E-To").text
+        mail["from_mail"] = element.find("E-From").text
+        mail["from_name"] = element.find("E-From").attrib['realName']
+        mail["subject"] = element.find("Subject").text
+        mails.append(mail)
+    return mails
+
+
+def getMailById(uid):
+    global session
+    response = requests.get(f"https://student.bmstu.ru/Session/{session}/FORMAT/Samoware/INBOX-MM-1/{uid}")
     return response.text
