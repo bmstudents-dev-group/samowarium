@@ -1,36 +1,43 @@
-import client
-from getpass import getpass
+from telegram import ForceReply, Update
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+import samovar_client
+import database
 
-# login
-login_str = input("enter login: ")
-password_str = getpass("enter password: ")
-client.login(login_str, password_str)
+application = None
 
-client.openInbox()
+async def activate(telegram_id, samovar_login, samovar_password):
+    client.login(samovar_login, samovar_password)
+    database.addClient(telegram_id, samovar_session)
+    await application.bot.send_message(client["telegram_id"], "Samovarium активирован!\nНовые письма будут пересылаться с вашей бауманской почты сюда")
 
-# getMails
-count = int(input("how many emails to list: "))
-mails = client.getMails(0,count-1)
-for mail in mails:
-    print(mail)
+async def deactivate(telegram_id):
+    await application.bot.send_message(clients["telegram_id"], "Samovarium выключен.\nБольше ничего писать не будем")
+    database.removeClient(telegram_id)
 
-# getMail
-uid = int(input("uid of email to print: "))
-print(client.getMailById(uid))
+async def tg_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    await update.message.reply_html(f"Привет {user.mention_html()}!\nДля активации бота напишите /login &lt;логин&gt; &lt;пароль&gt;")
 
-# longPollUpdates
-print("now longpolling new mails...")
-print("new mail will get printed automatically.")
-ackSeq = 0
-while True:
-    ackSeq, update = client.longPollUpdates(ackSeq)
-    print(ackSeq, update)
-    # TODO сделать UpdateType или типо того, чтобы не сравнивать строки
-    if("INBOX-MM-1" in update):
-        print("new mails arrived:")
-        newMails = client.getNewMails()
-        for mail in newMails:
-            print("mail info:")
-            print(mail)
-            print("mail text:")
-            print(client.getMailById(mail["uid"]))
+async def tg_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_html(f"Удаление ваших данных...")
+    await deactivate(update.effective_user.id)
+
+async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user.id
+    login = context.args[0]
+    password = context.args[1]
+    await update.message.reply_html(f"Вы ввели\nлогин: {login}\nлогин: {password}")
+    await activate(user,login,password)
+
+def main():
+    global application
+    application = Application.builder().token("6856761753:AAFBBxA2AO8W00tWRj_qCkX8bPDgERijD9c").build()
+    
+    application.add_handler(CommandHandler("start", tg_start))
+    application.add_handler(CommandHandler("stop", tg_stop))
+    application.add_handler(CommandHandler("login", tg_login))
+
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == "__main__":
+    main()
