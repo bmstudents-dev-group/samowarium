@@ -1,6 +1,6 @@
 from telegram import ForceReply, Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
-import samovar_client
+import samoware_client
 import database
 
 application = None
