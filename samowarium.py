@@ -31,7 +31,7 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 def main():
     global application
-    application = Application.builder().token("6856761753:AAFBBxA2AO8W00tWRj_qCkX8bPDgERijD9c").build()
+    application = Application.builder().token("token").build()
     
     application.add_handler(CommandHandler("start", tg_start))
     application.add_handler(CommandHandler("stop", tg_stop))
