@@ -1,5 +1,7 @@
+import aiohttp
 import requests
 import xml.etree.ElementTree as ET
+from bs4 import BeautifulSoup
 
 request_id = 0
 command_id = 0
@@ -48,11 +50,23 @@ def getMails(session, first, last):
 
 def longPollUpdates(session, ackSeq):
     response = requests.get(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}")
-    tree = ET.ElementTree(ET.fromstring(response.text))
+    response_text = response.text
+    tree = ET.ElementTree(ET.fromstring(response_text))
     root = tree.getroot()
     if("respSeq" in root.attrib):
         ackSeq = int(root.attrib["respSeq"])
-    return ackSeq, response.text
+    return ackSeq, response_text
+
+async def longPollUpdatesAsync(session, ackSeq):
+    http_session = aiohttp.ClientSession()
+    response = await http_session.get(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}")
+    response_text = await response.text()
+    await http_session.close()
+    tree = ET.ElementTree(ET.fromstring(response_text))
+    root = tree.getroot()
+    if("respSeq" in root.attrib):
+        ackSeq = int(root.attrib["respSeq"])
+    return ackSeq, response_text
 
 def getNewMails(session):
     response = requests.post(f"https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}",f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId()}"/></XIMSS>')
@@ -72,4 +86,5 @@ def getNewMails(session):
 
 def getMailById(session, uid):
     response = requests.get(f"https://student.bmstu.ru/Session/{session}/FORMAT/Samoware/INBOX-MM-1/{uid}")
-    return response.text
+    tree = BeautifulSoup(response.text,"html.parser")
+    return tree.find("tt").text
