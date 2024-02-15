@@ -26,10 +26,10 @@ async def client_handler(telegram_id, samoware_session):
             if('<folderReport folder="INBOX-MM-1" mode="notify"/>' in longPollUpdate):
                 updates = samoware_client.getInboxUpdates(samoware_session)
                 for update in updates:
-                    # если стоит флаг Seen, то событие это не новое письмо, а это обновление статуса письма
-                    logging.debug(f'email flags: {update["flags"]}')
-                    if update["flags"] == "Seen": continue
+                    if(update["mode"] != "added"): 
+                        continue
                     logging.info(f"new mail for user {telegram_id}")
+                    logging.debug(f'email flags: {update["flags"]}')
                     mail = samoware_client.getMailById(samoware_session,update["uid"])
                     mail_plaintext = html.escape(mail)
                     await telegram_bot.send_message(telegram_id, f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}')
