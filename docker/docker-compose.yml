@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  samowarium-container:
+    build: .
+    privileged: true
+    env_file:
+      - .env
+    volumes:
+      - ..:/samowarium:rw
+    working_dir: /samowarium
+    entrypoint:
+      - docker/tools/run_as_user.sh
