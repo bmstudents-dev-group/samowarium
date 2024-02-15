@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 application = None
-activee = None
 activate = None
 deactivate = None
 
@@ -16,14 +15,14 @@ async def tg_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def tg_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_html(f"Удаление ваших данных...")
-    deactivate(update.effective_user.id)
+    await deactivate(update.effective_user.id)
 
 async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user.id
     login = context.args[0]
     password = context.args[1]
     await update.message.reply_html(f"Вы ввели\nлогин: {login}\nлогин: {password}")
-    activate(user,login,password)
+    await activate(user,login,password)
 
 async def send_message(telegram_id, message):
     await application.bot.send_message(telegram_id, message)

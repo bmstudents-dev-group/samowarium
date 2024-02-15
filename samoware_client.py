@@ -25,7 +25,7 @@ def nextRand():
 
 def login(login, password):
     response = requests.get(f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}")
-    tree = ET.ElementTree(ET.fromstring(response.text))
+    tree = ET.fromstring(response.text)
     session = tree.find("session").attrib['urlID']
     return session
 
@@ -34,7 +34,7 @@ def openInbox(session):
 
 def getMails(session, first, last):
     response = requests.post(f"https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}", f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId()}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>')
-    tree = ET.ElementTree(ET.fromstring(response.text))
+    tree = ET.fromstring(response.text)
 
     mails = []
     for element in tree.findall("folderReport"):
@@ -51,7 +51,7 @@ def getMails(session, first, last):
 def longPollUpdates(session, ackSeq):
     response = requests.get(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}")
     response_text = response.text
-    tree = ET.ElementTree(ET.fromstring(response_text))
+    tree = ET.fromstring(response_text)
     root = tree.getroot()
     if("respSeq" in root.attrib):
         ackSeq = int(root.attrib["respSeq"])
@@ -62,15 +62,14 @@ async def longPollUpdatesAsync(session, ackSeq):
     response = await http_session.get(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}")
     response_text = await response.text()
     await http_session.close()
-    tree = ET.ElementTree(ET.fromstring(response_text))
-    root = tree.getroot()
-    if("respSeq" in root.attrib):
-        ackSeq = int(root.attrib["respSeq"])
+    tree = ET.fromstring(response_text)
+    if("respSeq" in tree.attrib):
+        ackSeq = int(tree.attrib["respSeq"])
     return ackSeq, response_text
 
-def getNewMails(session):
+def getInboxUpdates(session):
     response = requests.post(f"https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}",f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId()}"/></XIMSS>')
-    tree = ET.ElementTree(ET.fromstring(response.text))
+    tree = ET.fromstring(response.text)
     mails = []
     for element in tree.findall("folderReport"):
         mail = {}

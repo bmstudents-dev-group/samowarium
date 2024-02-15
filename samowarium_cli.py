@@ -28,7 +28,7 @@ while True:
     # TODO сделать UpdateType или типо того, чтобы не сравнивать строки
     if("INBOX-MM-1" in update):
         print("new mails arrived:")
-        newMails = samoware_client.getNewMails(session)
+        newMails = samoware_client.getInboxUpdates(session)
         for mail in newMails:
             print("mail info:")
             print(mail)
