@@ -12,7 +12,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     filename='samowarium.log', 
     encoding='utf-8', 
-    level=logging.DEBUG)
+    level=logging.INFO)
 
 active_clients = []
 
