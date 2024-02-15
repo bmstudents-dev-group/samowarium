@@ -1,43 +1,53 @@
-from telegram import ForceReply, Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+import telegram_bot
 import samoware_client
 import database
+import html
+import asyncio
 
-application = None
+active_clients = []
+
+async def client_handler(telegram_id, samoware_session):
+    samoware_client.openInbox(samoware_session)
+    ackSeq = 0
+    while telegram_id in active_clients:
+        ackSeq, longPollUpdate = await samoware_client.longPollUpdatesAsync(samoware_session,ackSeq)
+        if("INBOX-MM-1" in longPollUpdate):
+            updates = samoware_client.getInboxUpdates(samoware_session)
+            for update in updates:
+                # если стоит флаг Seen, то событие это не новое письмо, а это обновление статуса письма
+                if update["flags"] == "Seen": continue
+                print(f"new mail for user {telegram_id}")
+                mail = samoware_client.getMailById(samoware_session,update["uid"])
+                mail_plaintext = html.escape(mail)
+                await telegram_bot.send_message(telegram_id, f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}')
+
 
 async def activate(telegram_id, samovar_login, samovar_password):
-    client.login(samovar_login, samovar_password)
+    samoware_client.login(samovar_login, samovar_password)
+    samovar_session = samoware_client.login(samovar_login,samovar_password)
     database.addClient(telegram_id, samovar_session)
-    await application.bot.send_message(client["telegram_id"], "Samovarium активирован!\nНовые письма будут пересылаться с вашей бауманской почты сюда")
+    active_clients.append(telegram_id)
+    asyncio.create_task(client_handler(telegram_id, samovar_session))
+    await telegram_bot.send_message(telegram_id, "Samowarium активирован!\nНовые письма будут пересылаться с вашей бауманской почты сюда")
+    print(f"User {telegram_id} activated bot")
 
 async def deactivate(telegram_id):
-    await application.bot.send_message(clients["telegram_id"], "Samovarium выключен.\nБольше ничего писать не будем")
+    active_clients.remove(telegram_id)
     database.removeClient(telegram_id)
-
-async def tg_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user = update.effective_user
-    await update.message.reply_html(f"Привет {user.mention_html()}!\nДля активации бота напишите /login &lt;логин&gt; &lt;пароль&gt;")
-
-async def tg_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_html(f"Удаление ваших данных...")
-    await deactivate(update.effective_user.id)
-
-async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user = update.effective_user.id
-    login = context.args[0]
-    password = context.args[1]
-    await update.message.reply_html(f"Вы ввели\nлогин: {login}\nлогин: {password}")
-    await activate(user,login,password)
+    await telegram_bot.send_message(telegram_id, "Samowarium выключен.\nМы вам больше писать ничего не будем")
+    print(f"User {telegram_id} stopped bot")
 
 def main():
-    global application
-    application = Application.builder().token("token").build()
-    
-    application.add_handler(CommandHandler("start", tg_start))
-    application.add_handler(CommandHandler("stop", tg_stop))
-    application.add_handler(CommandHandler("login", tg_login))
+    print("loading clients...")
 
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    loop = asyncio.get_event_loop()
+    for client in database.loadAllClients():
+        active_clients.append(client[0])
+        loop.create_task(client_handler(client[0], client[1]))
+
+    print("clients loaded")
+
+    telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
 
 if __name__ == "__main__":
     main()
