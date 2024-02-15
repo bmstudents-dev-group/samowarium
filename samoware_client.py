@@ -26,6 +26,8 @@ def nextRand():
 def login(login, password):
     response = requests.get(f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}")
     tree = ET.fromstring(response.text)
+    if tree.find("session") == None:
+        return None
     session = tree.find("session").attrib['urlID']
     return session
 
