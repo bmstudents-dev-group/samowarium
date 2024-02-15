@@ -2,6 +2,7 @@ import aiohttp
 import requests
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
+import logging
 
 request_id = 0
 command_id = 0
@@ -74,13 +75,17 @@ def getInboxUpdates(session):
     tree = ET.fromstring(response.text)
     mails = []
     for element in tree.findall("folderReport"):
+        logging.debug('folderReport: '+str(ET.tostring(element,encoding="utf8")))
         mail = {}
+        mail['mode'] = element.attrib["mode"]
         mail["uid"] = element.attrib["UID"]
-        mail["flags"] = element.find("FLAGS").text
-        mail["to_mail"] = element.find("E-To").text
-        mail["from_mail"] = element.find("E-From").text
-        mail["from_name"] = element.find("E-From").attrib['realName']
-        mail["subject"] = element.find("Subject").text
+        if element.attrib["mode"] == 'added' or element.attrib["mode"] == 'updated':
+            mail["flags"] = element.find("FLAGS").text
+            mail["to_mail"] = element.find("E-To").text
+            mail["from_mail"] = element.find("E-From").text
+            mail["from_name"] = element.find("E-From").attrib['realName']
+            mail["subject"] = element.find("Subject").text
+        
         mails.append(mail)
     return mails
 
