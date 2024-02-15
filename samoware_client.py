@@ -93,4 +93,5 @@ def getInboxUpdates(session):
 def getMailById(session, uid):
     response = requests.get(f"https://student.bmstu.ru/Session/{session}/FORMAT/Samoware/INBOX-MM-1/{uid}")
     tree = BeautifulSoup(response.text,"html.parser")
+    logging.debug("mail body: "+str(tree.encode()))
     return tree.find("tt").text
