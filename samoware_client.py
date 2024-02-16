@@ -4,24 +4,24 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import logging
 
-request_id = 0
-command_id = 0
-rand = 0
+class SamowareContext:
+    def __init__(self, session, request_id, command_id, rand):
+        self.session = session
+        self.request_id = request_id
+        self.command_id = command_id
+        self.rand = rand
 
-def nextRequestId():
-    global request_id
-    request_id += 1
-    return request_id
+def nextRequestId(context):
+    context.request_id += 1
+    return context.request_id
 
-def nextCommandId():
-    global command_id
-    command_id += 1
-    return command_id
+def nextCommandId(context):
+    context.command_id += 1
+    return context.command_id
 
-def nextRand():
-    global rand
-    rand += 1
-    return rand
+def nextRand(context):
+    context.rand += 1
+    return context.rand
 
 def login(login, password):
     response = requests.get(f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}")
@@ -29,7 +29,8 @@ def login(login, password):
     if tree.find("session") == None:
         return None
     session = tree.find("session").attrib['urlID']
-    return session
+    context = SamowareContext(session, 0, 0, 0)
+    return context
 
 def loginWithSession(login, session):
     response = requests.get(f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1")
@@ -38,16 +39,17 @@ def loginWithSession(login, session):
     if tree.find("session") == None:
         return None
     session = tree.find("session").attrib['urlID']
-    return session
+    context = SamowareContext(session, 0, 0, 0)
+    return context
 
-def openInbox(session):
-    response = requests.post(f'https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}', f'<XIMSS><listKnownValues id="{nextCommandId()}"/><mailboxList filter="%" pureFolder="yes" id="{nextCommandId()}"/><mailboxList filter="%/%" pureFolder="yes" id="{nextCommandId()}"/><folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{nextCommandId()}"><field>FLAGS</field><field>E-From</field><field>Subject</field><field>Pty</field><field>Content-Type</field><field>INTERNALDATE</field><field>SIZE</field><field>E-To</field><field>E-Cc</field><field>E-Reply-To</field><field>X-Color</field><field>Disposition-Notification-To</field><field>X-Request-DSN</field><field>References</field><field>Message-ID</field></folderOpen><setSessionOption name="reportMailboxChanges" value="yes" id="{nextCommandId()}"/></XIMSS>')
+def openInbox(context):
+    response = requests.post(f'https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}', f'<XIMSS><listKnownValues id="{nextCommandId(context)}"/><mailboxList filter="%" pureFolder="yes" id="{nextCommandId(context)}"/><mailboxList filter="%/%" pureFolder="yes" id="{nextCommandId(context)}"/><folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{nextCommandId(context)}"><field>FLAGS</field><field>E-From</field><field>Subject</field><field>Pty</field><field>Content-Type</field><field>INTERNALDATE</field><field>SIZE</field><field>E-To</field><field>E-Cc</field><field>E-Reply-To</field><field>X-Color</field><field>Disposition-Notification-To</field><field>X-Request-DSN</field><field>References</field><field>Message-ID</field></folderOpen><setSessionOption name="reportMailboxChanges" value="yes" id="{nextCommandId(context)}"/></XIMSS>')
     if(response.status_code != 200):
         logging.error("received non 200 code: "+str(response.status_code))
         logging.error("response: "+str(response.text))
 
-def getMails(session, first, last):
-    response = requests.post(f"https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}", f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId()}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>')
+def getMails(context, first, last):
+    response = requests.post(f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}", f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId(context)}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>')
     tree = ET.fromstring(response.text)
 
     mails = []
@@ -62,8 +64,8 @@ def getMails(session, first, last):
         mails.append(mail)
     return mails
 
-def longPollUpdates(session, ackSeq):
-    response = requests.get(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}")
+def longPollUpdates(context, ackSeq):
+    response = requests.get(f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand(context)}")
     response_text = response.text
     tree = ET.fromstring(response_text)
     root = tree.getroot()
@@ -71,9 +73,9 @@ def longPollUpdates(session, ackSeq):
         ackSeq = int(root.attrib["respSeq"])
     return ackSeq, response_text
 
-async def longPollUpdatesAsync(session, ackSeq):
+async def longPollUpdatesAsync(context, ackSeq):
     http_session = aiohttp.ClientSession()
-    response = await http_session.get(f"https://student.bmstu.ru/Session/{session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand}")
+    response = await http_session.get(f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand(context)}")
     response_text = await response.text()
     await http_session.close()
     tree = ET.fromstring(response_text)
@@ -81,8 +83,8 @@ async def longPollUpdatesAsync(session, ackSeq):
         ackSeq = int(tree.attrib["respSeq"])
     return ackSeq, response_text
 
-def getInboxUpdates(session):
-    response = requests.post(f"https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}",f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId()}"/></XIMSS>')
+def getInboxUpdates(context):
+    response = requests.post(f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId(context)}"/></XIMSS>')
     if(response.status_code != 200):
         logging.error("received non 200 code: "+str(response.status_code))
         logging.error("response: "+str(response.text))
@@ -105,8 +107,8 @@ def getInboxUpdates(session):
     return mails
 
 
-def getMailById(session, uid):
-    response = requests.get(f"https://student.bmstu.ru/Session/{session}/FORMAT/Samoware/INBOX-MM-1/{uid}")
+def getMailById(context, uid):
+    response = requests.get(f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}")
     tree = BeautifulSoup(response.text,"html.parser")
     logging.debug("mail body: "+str(tree.encode()))
     return tree.find("tt").text
