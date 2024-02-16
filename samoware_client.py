@@ -7,7 +7,6 @@ import logging
 request_id = 0
 command_id = 0
 rand = 0
-session = ""
 
 def nextRequestId():
     global request_id
@@ -32,8 +31,20 @@ def login(login, password):
     session = tree.find("session").attrib['urlID']
     return session
 
+def loginWithSession(login, session):
+    response = requests.get(f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1")
+    logging.debug(response.text)
+    tree = ET.fromstring(response.text)
+    if tree.find("session") == None:
+        return None
+    session = tree.find("session").attrib['urlID']
+    return session
+
 def openInbox(session):
     response = requests.post(f'https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}', f'<XIMSS><listKnownValues id="{nextCommandId()}"/><mailboxList filter="%" pureFolder="yes" id="{nextCommandId()}"/><mailboxList filter="%/%" pureFolder="yes" id="{nextCommandId()}"/><folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{nextCommandId()}"><field>FLAGS</field><field>E-From</field><field>Subject</field><field>Pty</field><field>Content-Type</field><field>INTERNALDATE</field><field>SIZE</field><field>E-To</field><field>E-Cc</field><field>E-Reply-To</field><field>X-Color</field><field>Disposition-Notification-To</field><field>X-Request-DSN</field><field>References</field><field>Message-ID</field></folderOpen><setSessionOption name="reportMailboxChanges" value="yes" id="{nextCommandId()}"/></XIMSS>')
+    if(response.status_code != 200):
+        logging.error("received non 200 code: "+str(response.status_code))
+        logging.error("response: "+str(response.text))
 
 def getMails(session, first, last):
     response = requests.post(f"https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}", f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId()}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>')
@@ -72,6 +83,10 @@ async def longPollUpdatesAsync(session, ackSeq):
 
 def getInboxUpdates(session):
     response = requests.post(f"https://student.bmstu.ru/Session/{session}/sync?reqSeq={nextRequestId()}&random={nextRand()}",f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId()}"/></XIMSS>')
+    if(response.status_code != 200):
+        logging.error("received non 200 code: "+str(response.status_code))
+        logging.error("response: "+str(response.text))
+        return []
     tree = ET.fromstring(response.text)
     mails = []
     for element in tree.findall("folderReport"):
