@@ -14,6 +14,8 @@ logging.basicConfig(
     encoding='utf-8', 
     level=logging.INFO)
 
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 active_clients = []
 
 async def client_handler(telegram_id, samoware_context):
