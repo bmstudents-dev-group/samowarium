@@ -34,7 +34,7 @@ async def client_handler(telegram_id, samoware_session):
                     mail_plaintext = html.escape(mail)
                     await telegram_bot.send_message(telegram_id, f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}')
     except Exception as error:
-        logging.error('exception in client_handler:\n'+error)
+        logging.error('exception in client_handler:\n'+str(error))
 
 async def activate(telegram_id, samovar_login, samovar_password):
     if telegram_id in active_clients:
