@@ -78,6 +78,10 @@ async def longPollUpdatesAsync(context, ackSeq):
     response = await http_session.get(f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand(context)}")
     response_text = await response.text()
     await http_session.close()
+    logging.debug(f"Samoware longpoll response code: {response.status}, text: {response_text}")
+    if(response.status != 200):
+        logging.error(f"Samoware longpoll response code: {response.status}, text: {response_text}")
+        return ackSeq, ""
     tree = ET.fromstring(response_text)
     if("respSeq" in tree.attrib):
         ackSeq = int(tree.attrib["respSeq"])
