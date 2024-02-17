@@ -33,7 +33,7 @@ def login(login, password):
         f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     )
     tree = ET.fromstring(response.text)
-    if tree.find("session") == None:
+    if tree.find("session") is None:
         return None
     session = tree.find("session").attrib["urlID"]
     context = SamowareContext(session, 0, 0, 0)
@@ -46,7 +46,7 @@ def loginWithSession(login, session):
     )
     logging.debug(response.text)
     tree = ET.fromstring(response.text)
-    if tree.find("session") == None:
+    if tree.find("session") is None:
         return None
     session = tree.find("session").attrib["urlID"]
     context = SamowareContext(session, 0, 0, 0)

@@ -1,10 +1,8 @@
-from telegram import ForceReply, Update
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
     ContextTypes,
-    MessageHandler,
-    filters,
 )
 import os
 import logging
@@ -30,7 +28,7 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logging.debug(f"received /login from {update.effective_user.id}")
     if len(context.args) < 2:
         await update.message.reply_html(
-            f"Не верный формат\nДля активации бота напишите\n/login <i>логин</i> <i>пароль</i>"
+            "Не верный формат\nДля активации бота напишите\n/login <i>логин</i> <i>пароль</i>"
         )
         logging.debug(
             f"client entered login and password in wrong format: {context.args}"

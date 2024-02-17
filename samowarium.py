@@ -48,7 +48,7 @@ async def client_handler(telegram_id, samoware_context):
 
 async def activate(telegram_id, samovar_login, samovar_password):
     if telegram_id in active_clients:
-        await telegram_bot.send_message(telegram_id, f"Samowarium уже включен")
+        await telegram_bot.send_message(telegram_id, "Samowarium уже включен")
         return
     context = samoware_client.login(samovar_login, samovar_password)
     if context == None:
@@ -67,9 +67,9 @@ async def activate(telegram_id, samovar_login, samovar_password):
 
 async def deactivate(telegram_id):
     if telegram_id not in active_clients:
-        await telegram_bot.send_message(telegram_id, f"Samowarium уже был выключен")
+        await telegram_bot.send_message(telegram_id, "Samowarium уже был выключен")
         return
-    await telegram_bot.send_message(telegram_id, f"Удаление ваших данных...")
+    await telegram_bot.send_message(telegram_id, "Удаление ваших данных...")
     active_clients.remove(telegram_id)
     database.removeClient(telegram_id)
     await telegram_bot.send_message(
