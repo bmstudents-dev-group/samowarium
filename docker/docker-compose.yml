@@ -5,7 +5,7 @@ services:
     build: .
     privileged: true
     env_file:
-      - .env
+      - ./../.env
     volumes:
       - ..:/samowarium:rw
     working_dir: /samowarium
