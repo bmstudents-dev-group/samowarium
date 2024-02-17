@@ -51,7 +51,7 @@ async def activate(telegram_id, samovar_login, samovar_password):
         await telegram_bot.send_message(telegram_id, "Samowarium уже включен")
         return
     context = samoware_client.login(samovar_login, samovar_password)
-    if context == None:
+    if context is None:
         await telegram_bot.send_message(telegram_id, "Неверный логин или пароль")
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
