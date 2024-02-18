@@ -23,7 +23,7 @@ async def client_handler(telegram_id, samoware_context):
     try:
         samoware_client.openInbox(samoware_context)
         ackSeq = 0
-        while T:
+        while True:
             ackSeq, longPollUpdate = await samoware_client.longPollUpdatesAsync(
                 samoware_context, ackSeq
             )
