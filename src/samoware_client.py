@@ -39,7 +39,7 @@ def login(login, password):
     if tree.find("session") is None:
         return None
     session = tree.find("session").attrib["urlID"]
-    context = SamowareContext(login, session, 0, 0, 0)
+    context = SamowareContext(login, session, 0, 0, 0, datetime.now())
     return context
 
 
