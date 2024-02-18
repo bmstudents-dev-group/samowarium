@@ -52,11 +52,13 @@ async def client_handler(telegram_id):
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
 
+
 def revalidateClient(samoware_context: SamowareContext, telegram_id: int):
     samoware_context = samoware_client.revalidate(samoware_context)
     database.setSession(telegram_id, samoware_context.session)
     logging.info(f"revalidated client {telegram_id}")
     return samoware_context
+
 
 async def activate(telegram_id, samovar_login, samovar_password):
     if database.isClientActive(telegram_id):
