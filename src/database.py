@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 from samoware_client import SamowareContext
 
@@ -26,7 +27,7 @@ def getSession(telegram_id) -> SamowareContext:
         "SELECT samoware_login, samoware_session FROM clients WHERE telegram_id=?",
         (telegram_id,),
     ).fetchone()
-    return SamowareContext(samoware_login, samoware_session, 0, 0, 0)
+    return SamowareContext(samoware_login, samoware_session, 0, 0, 0, datetime.now())
 
 def clientActive(telegram_id):
     result = db.execute(
