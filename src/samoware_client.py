@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import logging
 from datetime import datetime
 
+
 class SamowareContext:
     def __init__(self, login, session, request_id, command_id, rand, last_revalidate):
         self.login = login
