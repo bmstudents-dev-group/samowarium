@@ -15,7 +15,7 @@ deactivate = None
 async def tg_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logging.debug(f"received /start from {update.effective_user.id}")
     await update.message.reply_html(
-        f"Привет {update.effective_user.mention_html()}!\nДля активации бота напишите: \n/login <i>логин</i> <i>пароль</i>\nДля отключения бота: /stop"
+        "Привет, это Samowarium, клиент бауманской почты в телеграме!\nДля активации бота напишите: \n/login <i>логин</i> <i>пароль</i>\nДля отключения бота: /stop"
     )
 
 
