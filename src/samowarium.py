@@ -26,6 +26,7 @@ async def client_handler(telegram_id):
         samoware_context = samoware_client.loginWithSession(samoware_login, samoware_session)
         database.setSession(telegram_id, samoware_context.session)
         last_revalidate = datetime.now()
+        logging.info(f"revalidated client {telegram_id}")
 
         samoware_client.openInbox(samoware_context)
 
@@ -52,6 +53,7 @@ async def client_handler(telegram_id):
             samoware_context = samoware_client.revalidate(samoware_context)
             database.setSession(telegram_id, samoware_context.session)
             last_revalidate = datetime.now()
+            logging.info(f"revalidated client {telegram_id}")
 
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
@@ -88,12 +90,12 @@ async def deactivate(telegram_id):
 
 
 def loadAllClients():
-    logging.info("loading and revalidating clients...")
+    logging.info("loading clients...")
     for client in database.getAllClients():
         asyncio.create_task(
             client_handler(client[0])
         )
-    logging.info("revalidated clients")
+    logging.info("loaded clients")
 
 
 async def main():
