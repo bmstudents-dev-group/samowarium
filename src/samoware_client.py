@@ -6,7 +6,8 @@ import logging
 
 
 class SamowareContext:
-    def __init__(self, session, request_id, command_id, rand):
+    def __init__(self, login, session, request_id, command_id, rand):
+        self.login = login
         self.session = session
         self.request_id = request_id
         self.command_id = command_id
@@ -36,7 +37,7 @@ def login(login, password):
     if tree.find("session") is None:
         return None
     session = tree.find("session").attrib["urlID"]
-    context = SamowareContext(session, 0, 0, 0)
+    context = SamowareContext(login, session, 0, 0, 0)
     return context
 
 
@@ -49,9 +50,11 @@ def loginWithSession(login, session):
     if tree.find("session") is None:
         return None
     session = tree.find("session").attrib["urlID"]
-    context = SamowareContext(session, 0, 0, 0)
+    context = SamowareContext(login, session, 0, 0, 0)
     return context
 
+def revalidate(context):
+    return loginWithSession(context.login, context.session)
 
 def openInbox(context):
     response = requests.post(
