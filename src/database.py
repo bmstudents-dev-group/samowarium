@@ -26,12 +26,10 @@ def getSession(telegram_id):
     ).fetchone()
 
 
-def isClientActive(telegram_id):
-    result = (
-        db.execute(
-            "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
-        ).fetchone()[0]
-    )
+def clientActive(telegram_id):
+    result = db.execute(
+        "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
+    ).fetchone()[0]
     return result != 0
 
 
