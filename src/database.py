@@ -30,7 +30,7 @@ def getSession(telegram_id) -> SamowareContext:
     return SamowareContext(samoware_login, samoware_session, 0, 0, 0, datetime.now())
 
 
-def clientActive(telegram_id):
+def isClientActive(telegram_id):
     result = db.execute(
         "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
     ).fetchone()[0]
