@@ -88,18 +88,6 @@ def getMails(context, first, last):
     return mails
 
 
-def longPollUpdates(context, ackSeq):
-    response = requests.get(
-        f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand(context)}"
-    )
-    response_text = response.text
-    tree = ET.fromstring(response_text)
-    root = tree.getroot()
-    if "respSeq" in root.attrib:
-        ackSeq = int(root.attrib["respSeq"])
-    return ackSeq, response_text
-
-
 async def longPollUpdatesAsync(context, ackSeq):
     http_session = aiohttp.ClientSession()
     response = await http_session.get(
