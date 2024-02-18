@@ -53,7 +53,7 @@ async def startBot(onActivate, onDeactivate):
     deactivate = onDeactivate
 
     logging.debug("connecting to telegram api...")
-    application = Application.builder().token(os.environ["SAMOWARIUM_TOKEN"]).build()
+    application = Application.builder().token(os.environ["TELEGRAM_TOKEN"]).build()
 
     application.add_handler(CommandHandler("start", tg_start))
     application.add_handler(CommandHandler("stop", tg_stop))
