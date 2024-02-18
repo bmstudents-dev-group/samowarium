@@ -46,7 +46,7 @@ async def client_handler(telegram_id):
                         telegram_id,
                         f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}',
                     )
-        if samoware_context.last_revalidate + timedelta(hours=5) > datetime.now():
+        if samoware_context.last_revalidate + timedelta(hours=5) < datetime.now():
             samoware_context = revalidateClient(samoware_context, telegram_id)
 
     except Exception as error:
