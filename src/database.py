@@ -1,4 +1,7 @@
 import sqlite3
+from datetime import datetime
+
+from samoware_client import SamowareContext
 
 db = sqlite3.connect("database.db", check_same_thread=False)
 
@@ -19,8 +22,23 @@ def setSession(telegram_id, samovar_session):
     db.commit()
 
 
-def loadAllClients():
-    return db.execute("SELECT * FROM clients").fetchall()
+def getSession(telegram_id) -> SamowareContext:
+    samoware_login, samoware_session = db.execute(
+        "SELECT samoware_login, samoware_session FROM clients WHERE telegram_id=?",
+        (telegram_id,),
+    ).fetchone()
+    return SamowareContext(samoware_login, samoware_session, 0, 0, 0, datetime.now())
+
+
+def isClientActive(telegram_id):
+    result = db.execute(
+        "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
+    ).fetchone()[0]
+    return result != 0
+
+
+def getAllClients():
+    return db.execute("SELECT telegram_id FROM clients").fetchall()
 
 
 def removeClient(telegram_id):

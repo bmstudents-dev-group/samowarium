@@ -1,10 +1,12 @@
 import telegram_bot
 import samoware_client
+from samoware_client import SamowareContext
 import database
 import html
 import asyncio
 import logging
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -17,14 +19,16 @@ logging.basicConfig(
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-active_clients = []
 
-
-async def client_handler(telegram_id, samoware_context):
+async def client_handler(telegram_id):
     try:
+
+        samoware_context = database.getSession(telegram_id)
+        samoware_context = revalidateClient(samoware_context, telegram_id)
         samoware_client.openInbox(samoware_context)
+
         ackSeq = 0
-        while telegram_id in active_clients:
+        while database.isClientActive(telegram_id):
             ackSeq, longPollUpdate = await samoware_client.longPollUpdatesAsync(
                 samoware_context, ackSeq
             )
@@ -42,12 +46,22 @@ async def client_handler(telegram_id, samoware_context):
                         telegram_id,
                         f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}',
                     )
+        if samoware_context.last_revalidate + timedelta(hours=5) > datetime.now():
+            samoware_context = revalidateClient(samoware_context, telegram_id)
+
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
 
 
+def revalidateClient(samoware_context: SamowareContext, telegram_id: int):
+    samoware_context = samoware_client.revalidate(samoware_context)
+    database.setSession(telegram_id, samoware_context.session)
+    logging.info(f"revalidated client {telegram_id}")
+    return samoware_context
+
+
 async def activate(telegram_id, samovar_login, samovar_password):
-    if telegram_id in active_clients:
+    if database.isClientActive(telegram_id):
         await telegram_bot.send_message(telegram_id, "Samowarium уже включен")
         return
     context = samoware_client.login(samovar_login, samovar_password)
@@ -56,8 +70,7 @@ async def activate(telegram_id, samovar_login, samovar_password):
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
     database.addClient(telegram_id, samovar_login, context.session)
-    active_clients.append(telegram_id)
-    asyncio.create_task(client_handler(telegram_id, context))
+    asyncio.create_task(client_handler(telegram_id))
     await telegram_bot.send_message(
         telegram_id,
         "Samowarium активирован!\nНовые письма будут пересылаться с вашей бауманской почты сюда",
@@ -66,11 +79,10 @@ async def activate(telegram_id, samovar_login, samovar_password):
 
 
 async def deactivate(telegram_id):
-    if telegram_id not in active_clients:
+    if not database.isClientActive(telegram_id):
         await telegram_bot.send_message(telegram_id, "Samowarium уже был выключен")
         return
     await telegram_bot.send_message(telegram_id, "Удаление ваших данных...")
-    active_clients.remove(telegram_id)
     database.removeClient(telegram_id)
     await telegram_bot.send_message(
         telegram_id, "Samowarium выключен.\nМы вам больше писать ничего не будем"
@@ -78,18 +90,18 @@ async def deactivate(telegram_id):
     logging.info(f"User {telegram_id} stopped bot")
 
 
-def main():
+def loadAllClients():
     logging.info("loading clients...")
-    loop = asyncio.get_event_loop()
-    for client in database.loadAllClients():
-        active_clients.append(client[0])
-        context = samoware_client.loginWithSession(client[1], client[2])
-        loop.create_task(client_handler(client[0], context))
-        database.setSession(client[0], context.session)
+    for client in database.getAllClients():
+        asyncio.create_task(client_handler(client[0]))
+    logging.info("revalidated clients")
 
-    logging.info("starting telegram bot...")
-    telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
+
+async def main():
+    loadAllClients()
+    await telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
+    await asyncio.gather(*asyncio.all_tasks())
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

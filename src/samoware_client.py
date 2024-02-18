@@ -3,14 +3,17 @@ import requests
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import logging
+from datetime import datetime
 
 
 class SamowareContext:
-    def __init__(self, session, request_id, command_id, rand):
+    def __init__(self, login, session, request_id, command_id, rand, last_revalidate):
+        self.login = login
         self.session = session
         self.request_id = request_id
         self.command_id = command_id
         self.rand = rand
+        self.last_revalidate = last_revalidate
 
 
 def nextRequestId(context):
@@ -36,20 +39,20 @@ def login(login, password):
     if tree.find("session") is None:
         return None
     session = tree.find("session").attrib["urlID"]
-    context = SamowareContext(session, 0, 0, 0)
+    context = SamowareContext(login, session, 0, 0, 0, datetime.now())
     return context
 
 
-def loginWithSession(login, session):
+def revalidate(context: SamowareContext):
     response = requests.get(
-        f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1"
+        f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={context.login}&sessionid={context.session}&killOld=1"
     )
     logging.debug(response.text)
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
         return None
-    session = tree.find("session").attrib["urlID"]
-    context = SamowareContext(session, 0, 0, 0)
+    context.session = tree.find("session").attrib["urlID"]
+    context.last_revalidate = datetime.now()
     return context
 
 
@@ -81,18 +84,6 @@ def getMails(context, first, last):
         mail["subject"] = element.find("Subject").text
         mails.append(mail)
     return mails
-
-
-def longPollUpdates(context, ackSeq):
-    response = requests.get(
-        f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand(context)}"
-    )
-    response_text = response.text
-    tree = ET.fromstring(response_text)
-    root = tree.getroot()
-    if "respSeq" in root.attrib:
-        ackSeq = int(root.attrib["respSeq"])
-    return ackSeq, response_text
 
 
 async def longPollUpdatesAsync(context, ackSeq):
