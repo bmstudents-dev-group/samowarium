@@ -19,6 +19,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 client_tasks = {}
 
+
 async def client_handler(telegram_id, samoware_context):
     try:
         samoware_client.openInbox(samoware_context)
@@ -55,7 +56,9 @@ async def activate(telegram_id, samovar_login, samovar_password):
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
     database.addClient(telegram_id, samovar_login, context.session)
-    client_tasks[telegram_id] = asyncio.create_task(client_handler(telegram_id, context))
+    client_tasks[telegram_id] = asyncio.create_task(
+        client_handler(telegram_id, context)
+    )
     await telegram_bot.send_message(
         telegram_id,
         "Samowarium активирован!\nНовые письма будут пересылаться с вашей бауманской почты сюда",
@@ -75,6 +78,7 @@ async def deactivate(telegram_id):
     )
     logging.info(f"User {telegram_id} stopped bot")
 
+
 def ravalidateAllClients():
     logging.info("revalidating clients...")
     for client_task in client_tasks.values():
@@ -82,20 +86,25 @@ def ravalidateAllClients():
     client_tasks.clear()
     for client in database.loadAllClients():
         context = samoware_client.loginWithSession(client[1], client[2])
-        client_tasks[client[0]] = asyncio.create_task(client_handler(client[0], context))
+        client_tasks[client[0]] = asyncio.create_task(
+            client_handler(client[0], context)
+        )
         database.setSession(client[0], context.session)
     logging.info("revalidated clients")
 
+
 async def revalidateJob():
     while True:
-        await asyncio.sleep(60*60*5)
+        await asyncio.sleep(60 * 60 * 5)
         ravalidateAllClients()
+
 
 async def main():
     ravalidateAllClients()
     asyncio.create_task(revalidateJob())
     await telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
     await asyncio.gather(*asyncio.all_tasks())
+
 
 if __name__ == "__main__":
     asyncio.run(main())
