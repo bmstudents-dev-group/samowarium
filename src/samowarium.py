@@ -21,9 +21,11 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 async def client_handler(telegram_id):
     try:
-        
+
         samoware_login, samoware_session = database.g
-        samoware_context = samoware_client.loginWithSession(samoware_login, samoware_session)
+        samoware_context = samoware_client.loginWithSession(
+            samoware_login, samoware_session
+        )
         database.setSession(telegram_id, samoware_context.session)
         last_revalidate = datetime.now()
 
@@ -90,9 +92,7 @@ async def deactivate(telegram_id):
 def loadAllClients():
     logging.info("loading and revalidating clients...")
     for client in database.getAllClients():
-        asyncio.create_task(
-            client_handler(client[0])
-        )
+        asyncio.create_task(client_handler(client[0]))
     logging.info("revalidated clients")
 
 
