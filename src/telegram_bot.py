@@ -46,17 +46,20 @@ async def send_message(telegram_id, message):
     await application.bot.send_message(telegram_id, message)
 
 
-def startBot(onActivate, onDeactivate):
+async def startBot(onActivate, onDeactivate):
     global application, activate, deactivate
+    logging.info("starting telegram bot...")
     activate = onActivate
     deactivate = onDeactivate
 
-    logging.debug("connecting to telegram api")
+    logging.debug("connecting to telegram api...")
     application = Application.builder().token(os.environ["SAMOWARIUM_TOKEN"]).build()
 
     application.add_handler(CommandHandler("start", tg_start))
     application.add_handler(CommandHandler("stop", tg_stop))
     application.add_handler(CommandHandler("login", tg_login))
 
-    logging.debug("starting telegram polling")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    logging.debug("starting telegram polling...")
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)

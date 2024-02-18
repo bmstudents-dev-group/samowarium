@@ -75,18 +75,27 @@ async def deactivate(telegram_id):
     )
     logging.info(f"User {telegram_id} stopped bot")
 
-
-def main():
-    logging.info("loading clients...")
-    loop = asyncio.get_event_loop()
+def ravalidateAllClients():
+    logging.info("revalidating clients...")
+    for client_task in client_tasks.values():
+        client_task.cancel()
+    client_tasks.clear()
     for client in database.loadAllClients():
         context = samoware_client.loginWithSession(client[1], client[2])
-        client_tasks[client[0]] = loop.create_task(client_handler(client[0], context))
+        client_tasks[client[0]] = asyncio.create_task(client_handler(client[0], context))
         database.setSession(client[0], context.session)
+    logging.info("revalidated clients")
 
-    logging.info("starting telegram bot...")
-    telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
+async def revalidateJob():
+    while True:
+        await asyncio.sleep(60*60*5)
+        ravalidateAllClients()
 
+async def main():
+    ravalidateAllClients()
+    asyncio.create_task(revalidateJob())
+    await telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
+    await asyncio.gather(*asyncio.all_tasks())
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
