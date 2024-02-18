@@ -1,5 +1,6 @@
 import telegram_bot
 import samoware_client
+from samoware_client import SamowareContext
 import database
 import html
 import asyncio
@@ -22,14 +23,8 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 async def client_handler(telegram_id):
     try:
 
-        samoware_login, samoware_session = database.getSession(telegram_id)
-        samoware_context = samoware_client.loginWithSession(
-            samoware_login, samoware_session
-        )
-        database.setSession(telegram_id, samoware_context.session)
-        last_revalidate = datetime.now()
-        logging.info(f"revalidated client {telegram_id}")
-
+        samoware_context = database.getSession(telegram_id)
+        samoware_context = revalidateClient(samoware_context, telegram_id)
         samoware_client.openInbox(samoware_context)
 
         ackSeq = 0
@@ -51,15 +46,17 @@ async def client_handler(telegram_id):
                         telegram_id,
                         f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}',
                     )
-        if last_revalidate + timedelta(hours=5) > datetime.now():
-            samoware_context = samoware_client.revalidate(samoware_context)
-            database.setSession(telegram_id, samoware_context.session)
-            last_revalidate = datetime.now()
-            logging.info(f"revalidated client {telegram_id}")
+        if samoware_context.last_revalidate + timedelta(hours=5) > datetime.now():
+            samoware_context = revalidateClient(samoware_context, telegram_id)
 
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
 
+def revalidateClient(samoware_context: SamowareContext, telegram_id: int):
+    samoware_context = samoware_client.revalidate(samoware_context)
+    database.setSession(telegram_id, samoware_context.session)
+    logging.info(f"revalidated client {telegram_id}")
+    return samoware_context
 
 async def activate(telegram_id, samovar_login, samovar_password):
     if database.isClientActive(telegram_id):

@@ -3,15 +3,16 @@ import requests
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import logging
-
+from datetime import datetime
 
 class SamowareContext:
-    def __init__(self, login, session, request_id, command_id, rand):
+    def __init__(self, login, session, request_id, command_id, rand, last_revalidate):
         self.login = login
         self.session = session
         self.request_id = request_id
         self.command_id = command_id
         self.rand = rand
+        self.last_revalidate = last_revalidate
 
 
 def nextRequestId(context):
@@ -41,7 +42,7 @@ def login(login, password):
     return context
 
 
-def loginWithSession(login, session):
+def revalidate(context):
     response = requests.get(
         f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1"
     )
@@ -49,13 +50,9 @@ def loginWithSession(login, session):
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
         return None
-    session = tree.find("session").attrib["urlID"]
-    context = SamowareContext(login, session, 0, 0, 0)
+    context.session = tree.find("session").attrib["urlID"]
+    context.last_revalidate = datetime.now()
     return context
-
-
-def revalidate(context):
-    return loginWithSession(context.login, context.session)
 
 
 def openInbox(context):
