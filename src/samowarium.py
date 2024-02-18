@@ -5,7 +5,7 @@ import html
 import asyncio
 import logging
 from dotenv import load_dotenv
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -17,6 +17,7 @@ logging.basicConfig(
 )
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
+
 
 async def client_handler(telegram_id):
     try:
@@ -47,8 +48,7 @@ async def client_handler(telegram_id):
                         telegram_id,
                         f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}',
                     )
-
-        if last_revalidate+timedelta(hours=5) > datetime.now():
+        if last_revalidate + timedelta(hours=5) > datetime.now():
             samoware_context = samoware_client.revalidate(samoware_context)
             database.setSession(telegram_id, samoware_context.session)
             last_revalidate = datetime.now()
@@ -67,9 +67,7 @@ async def activate(telegram_id, samovar_login, samovar_password):
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
     database.addClient(telegram_id, samovar_login, context.session)
-    asyncio.create_task(
-        client_handler(telegram_id, context)
-    )
+    asyncio.create_task(client_handler(telegram_id, context))
     await telegram_bot.send_message(
         telegram_id,
         "Samowarium активирован!\nНовые письма будут пересылаться с вашей бауманской почты сюда",

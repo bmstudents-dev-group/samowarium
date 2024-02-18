@@ -53,8 +53,10 @@ def loginWithSession(login, session):
     context = SamowareContext(login, session, 0, 0, 0)
     return context
 
+
 def revalidate(context):
     return loginWithSession(context.login, context.session)
+
 
 def openInbox(context):
     response = requests.post(
