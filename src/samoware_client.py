@@ -43,9 +43,9 @@ def login(login, password):
     return context
 
 
-def revalidate(context):
+def revalidate(context: SamowareContext):
     response = requests.get(
-        f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1"
+        f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={context.login}&sessionid={context.session}&killOld=1"
     )
     logging.debug(response.text)
     tree = ET.fromstring(response.text)
