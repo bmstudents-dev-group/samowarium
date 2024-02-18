@@ -18,10 +18,16 @@ logging.basicConfig(
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-async def client_handler(telegram_id, samoware_context):
+async def client_handler(telegram_id):
     try:
+        
+        samoware_login, samoware_session = database.g
+        samoware_context = samoware_client.loginWithSession(samoware_login, samoware_session)
+        database.setSession(telegram_id, samoware_context.session)
         last_revalidate = datetime.now()
+
         samoware_client.openInbox(samoware_context)
+
         ackSeq = 0
         while database.clientActive(telegram_id):
             ackSeq, longPollUpdate = await samoware_client.longPollUpdatesAsync(
@@ -41,10 +47,12 @@ async def client_handler(telegram_id, samoware_context):
                         telegram_id,
                         f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}',
                     )
+
         if last_revalidate+timedelta(hours=5) > datetime.now():
             samoware_context = samoware_client.revalidate(samoware_context)
             database.setSession(telegram_id, samoware_context.session)
             last_revalidate = datetime.now()
+
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
 
@@ -83,12 +91,10 @@ async def deactivate(telegram_id):
 
 def loadAllClients():
     logging.info("loading and revalidating clients...")
-    for client in database.loadAllClients():
-        context = samoware_client.loginWithSession(client[1], client[2])
+    for client in database.getAllClients():
         asyncio.create_task(
-            client_handler(client[0], context)
+            client_handler(client[0])
         )
-        database.setSession(client[0], context.session)
     logging.info("revalidated clients")
 
 

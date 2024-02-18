@@ -18,6 +18,10 @@ def setSession(telegram_id, samovar_session):
     )
     db.commit()
 
+def getSession(telegram_id):
+    return db.execute("SELECT samoware_login, samoware_session FROM clients WHERE telegram_id=?",
+        (telegram_id,)
+    ).fetchone()
 
 def clientActive(telegram_id):
     return (
@@ -28,8 +32,8 @@ def clientActive(telegram_id):
     )
 
 
-def loadAllClients():
-    return db.execute("SELECT * FROM clients").fetchall()
+def getAllClients():
+    return db.execute("SELECT telegram_id FROM clients").fetchall()
 
 
 def removeClient(telegram_id):
