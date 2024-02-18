@@ -33,7 +33,7 @@ async def client_handler(telegram_id):
         samoware_client.openInbox(samoware_context)
 
         ackSeq = 0
-        while database.clientActive(telegram_id):
+        while database.isClientActive(telegram_id):
             ackSeq, longPollUpdate = await samoware_client.longPollUpdatesAsync(
                 samoware_context, ackSeq
             )
@@ -62,7 +62,7 @@ async def client_handler(telegram_id):
 
 
 async def activate(telegram_id, samovar_login, samovar_password):
-    if database.clientActive(telegram_id):
+    if database.isClientActive(telegram_id):
         await telegram_bot.send_message(telegram_id, "Samowarium уже включен")
         return
     context = samoware_client.login(samovar_login, samovar_password)
@@ -80,7 +80,7 @@ async def activate(telegram_id, samovar_login, samovar_password):
 
 
 async def deactivate(telegram_id):
-    if not database.clientActive(telegram_id):
+    if not database.isClientActive(telegram_id):
         await telegram_bot.send_message(telegram_id, "Samowarium уже был выключен")
         return
     await telegram_bot.send_message(telegram_id, "Удаление ваших данных...")
