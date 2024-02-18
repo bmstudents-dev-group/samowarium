@@ -18,11 +18,15 @@ def setSession(telegram_id, samovar_session):
     )
     db.commit()
 
+
 def clientActive(telegram_id):
-    return db.execute(
-        "SELECT COUNT(*) FROM clients WHERE telegram_id = ?",
-        (telegram_id,)
-    ).fetchone()[0] != 0
+    return (
+        db.execute(
+            "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
+        ).fetchone()[0]
+        != 0
+    )
+
 
 def loadAllClients():
     return db.execute("SELECT * FROM clients").fetchall()
