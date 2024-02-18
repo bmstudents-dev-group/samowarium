@@ -31,9 +31,8 @@ def clientActive(telegram_id):
         db.execute(
             "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
         ).fetchone()[0]
-        != 0
     )
-    return result
+    return result != 0
 
 
 def getAllClients():
