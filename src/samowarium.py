@@ -22,7 +22,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 async def client_handler(telegram_id):
     try:
 
-        samoware_login, samoware_session = database.g
+        samoware_login, samoware_session = database.getSession(telegram_id)
         samoware_context = samoware_client.loginWithSession(
             samoware_login, samoware_session
         )
