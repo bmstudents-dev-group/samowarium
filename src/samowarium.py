@@ -79,7 +79,7 @@ async def deactivate(telegram_id):
     logging.info(f"User {telegram_id} stopped bot")
 
 
-def ravalidateAllClients():
+def revalidateAllClients():
     logging.info("revalidating clients...")
     for client_task in client_tasks.values():
         client_task.cancel()
@@ -96,11 +96,11 @@ def ravalidateAllClients():
 async def revalidateJob():
     while True:
         await asyncio.sleep(60 * 60 * 5)
-        ravalidateAllClients()
+        revalidateAllClients()
 
 
 async def main():
-    ravalidateAllClients()
+    revalidateAllClients()
     asyncio.create_task(revalidateJob())
     await telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
     await asyncio.gather(*asyncio.all_tasks())
