@@ -14,10 +14,10 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     filename="samowarium.log",
     encoding="utf-8",
-    level=logging.INFO,
+    level=logging.DEBUG,
 )
 
-logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.DEBUG)
 
 
 async def client_handler(telegram_id):
