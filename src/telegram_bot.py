@@ -26,7 +26,9 @@ async def tg_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logging.debug(f"received /login from {update.effective_user.id}")
-    await application.bot.delete_message(update.effective_chat.id,update.effective_message.id)
+    await application.bot.delete_message(
+        update.effective_chat.id, update.effective_message.id
+    )
     if len(context.args) < 2:
         await update.message.reply_html(
             "Не верный формат\nДля активации бота напишите\n/login <i>логин</i> <i>пароль</i>"
