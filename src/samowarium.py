@@ -58,9 +58,17 @@ async def client_handler(telegram_id):
                 samoware_client.openInbox(samoware_context)
                 ackSeq = 0
 
+    except RuntimeError:
+        logging.info(f"longpolling for user {telegram_id} stopped")
     except Exception as error:
+        database.removeClient(telegram_id)
         logging.exception("exception in client_handler:\n" + str(error))
-        sys.exit(1)
+        await telegram_bot.send_message(
+            telegram_id,
+            'Ваша сессия Samoware истекла. Чтобы продолжить получать письма, введите\n/login _логин_ _пароль_',
+            format='markdown'
+        )
+        return
 
 
 def revalidateClient(samoware_context: SamowareContext, telegram_id: int):
