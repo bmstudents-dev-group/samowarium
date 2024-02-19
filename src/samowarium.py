@@ -43,9 +43,15 @@ async def client_handler(telegram_id):
                     logging.debug(f'email flags: {update["flags"]}')
                     mail = samoware_client.getMailById(samoware_context, update["uid"])
                     mail_plaintext = html.escape(mail)
+                    to_str = ""
+                    for i in range(len(update["to_name"])):
+                        to_str += f'[{update["to_name"][i]}](copy-this-mail.example/{update["to_mail"][i]})'
+                        if i != len(update["to_name"])-1:
+                            to_str += ', '
                     await telegram_bot.send_message(
                         telegram_id,
-                        f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}',
+                        f'{update["local_time"].strftime("%d.%m.%Y %H:%M")}\n\nОт кого: [{update["from_name"]}](copy-this-mail.example/{update["from_mail"]})\n\nКому: {to_str}\n\n*{update["subject"]}*\n\n{mail_plaintext}',
+                        'markdown'
                     )
             if samoware_context.last_revalidate + timedelta(hours=5) < datetime.now():
                 samoware_context = revalidateClient(samoware_context, telegram_id)
