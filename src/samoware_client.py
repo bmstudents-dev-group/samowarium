@@ -53,6 +53,9 @@ def revalidate(context: SamowareContext):
         return None
     context.session = tree.find("session").attrib["urlID"]
     context.last_revalidate = datetime.now()
+    context.request_id = 0
+    context.command_id = 0
+    context.rand = 0
     return context
 
 

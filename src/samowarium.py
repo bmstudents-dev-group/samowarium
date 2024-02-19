@@ -7,6 +7,7 @@ import asyncio
 import logging
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import sys
 
 load_dotenv()
 
@@ -14,10 +15,10 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     filename="samowarium.log",
     encoding="utf-8",
-    level=logging.INFO,
+    level=logging.DEBUG,
 )
 
-logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.DEBUG)
 
 
 async def client_handler(telegram_id):
@@ -46,11 +47,14 @@ async def client_handler(telegram_id):
                         telegram_id,
                         f'Пришло письмо от {update["from_name"]} ({update["from_mail"]})\nТема: {update["subject"]}\n{mail_plaintext}',
                     )
-        if samoware_context.last_revalidate + timedelta(hours=5) > datetime.now():
-            samoware_context = revalidateClient(samoware_context, telegram_id)
+            if samoware_context.last_revalidate + timedelta(hours=5) < datetime.now():
+                samoware_context = revalidateClient(samoware_context, telegram_id)
+                samoware_client.openInbox(samoware_context)
+                ackSeq = 0
 
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
+        sys.exit(1)
 
 
 def revalidateClient(samoware_context: SamowareContext, telegram_id: int):
