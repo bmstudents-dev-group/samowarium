@@ -7,7 +7,6 @@ import asyncio
 import logging
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-import sys
 
 load_dotenv()
 

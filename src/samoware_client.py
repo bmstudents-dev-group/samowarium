@@ -4,8 +4,6 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import logging
 from datetime import datetime
-import json
-import urllib.parse
 
 
 class SamowareContext:
