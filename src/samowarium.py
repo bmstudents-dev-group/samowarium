@@ -7,6 +7,7 @@ import asyncio
 import logging
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import sys
 
 load_dotenv()
 
@@ -51,6 +52,7 @@ async def client_handler(telegram_id):
 
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
+        sys.exit(1)
 
 
 def revalidateClient(samoware_context: SamowareContext, telegram_id: int):
