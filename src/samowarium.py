@@ -65,8 +65,8 @@ async def client_handler(telegram_id):
         logging.exception("exception in client_handler:\n" + str(error))
         await telegram_bot.send_message(
             telegram_id,
-            'Ваша сессия Samoware истекла. Чтобы продолжить получать письма, введите\n/login _логин_ _пароль_',
-            format='markdown'
+            "Ваша сессия Samoware истекла. Чтобы продолжить получать письма, введите\n/login _логин_ _пароль_",
+            format="markdown",
         )
         return
 

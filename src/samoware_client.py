@@ -103,7 +103,7 @@ async def longPollUpdatesAsync(context, ackSeq):
         logging.error(
             f"Samoware longpoll response code: {response.status}, text: {response_text}"
         )
-        raise AttributeError 
+        raise AttributeError
     tree = ET.fromstring(response_text)
     if "respSeq" in tree.attrib:
         ackSeq = int(tree.attrib["respSeq"])
