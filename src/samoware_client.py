@@ -127,8 +127,12 @@ def getInboxUpdates(context):
         mail["mode"] = element.attrib["mode"]
         mail["uid"] = element.attrib["UID"]
         if element.attrib["mode"] == "added" or element.attrib["mode"] == "updated":
-            mail["local_time"] = datetime.strptime(element.find("INTERNALDATE").attrib["localTime"], '%Y%m%dT%H%M%S')
-            mail["utc_time"] = datetime.strptime(element.find("INTERNALDATE").text, '%Y%m%dT%H%M%SZ')
+            mail["local_time"] = datetime.strptime(
+                element.find("INTERNALDATE").attrib["localTime"], "%Y%m%dT%H%M%S"
+            )
+            mail["utc_time"] = datetime.strptime(
+                element.find("INTERNALDATE").text, "%Y%m%dT%H%M%SZ"
+            )
             mail["flags"] = element.find("FLAGS").text
             mail["from_mail"] = element.find("E-From").text
             mail["from_name"] = element.find("E-From").attrib["realName"]
