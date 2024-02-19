@@ -49,7 +49,7 @@ async def client_handler(telegram_id):
                     )
             if samoware_context.last_revalidate + timedelta(hours=5) < datetime.now():
                 samoware_context = revalidateClient(samoware_context, telegram_id)
-                ackSeq=0
+                ackSeq = 0
 
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
