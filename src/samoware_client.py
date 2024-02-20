@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 import logging
 from datetime import datetime, timedelta
 
+revalidate_interval = timedelta(hours=5)
 
 class SamowareContext:
     def __init__(self, login:str, session:str, request_id:int = 0, command_id:int = 0, rand:int = 0, ackSeq:int = 0, last_revalidate:datetime = datetime.now(), cookies:dict = {}):
@@ -71,7 +72,7 @@ async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUp
                             to_str += ", "
                     mail = Mail(update["uid"], update["flags"], update["local_time"], update["utc_time"], update["to_mail"], update["to_name"], update["from_mail"], update["from_name"], update["subject"], mail_plaintext)
                     await onMail(mail)
-            if context.last_revalidate + timedelta(hours=5) < datetime.now():
+            if context.last_revalidate + revalidate_interval < datetime.now():
                 revalidate(context)
                 await onContextUpdate(context)
         logging.info(f"longpolling for {context.login} stopped")
