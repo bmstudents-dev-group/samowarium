@@ -7,13 +7,14 @@ from datetime import datetime
 
 
 class SamowareContext:
-    def __init__(self, login, session, request_id, command_id, rand, last_revalidate):
+    def __init__(self, login, session, request_id=0, command_id=0, rand=0, last_revalidate=datetime.now(), cookies={}):
         self.login = login
         self.session = session
         self.request_id = request_id
         self.command_id = command_id
         self.rand = rand
         self.last_revalidate = last_revalidate
+        self.cookies = cookies
 
 
 def nextRequestId(context):
@@ -39,7 +40,7 @@ def login(login, password):
     if tree.find("session") is None:
         return None
     session = tree.find("session").attrib["urlID"]
-    context = SamowareContext(login, session, 0, 0, 0, datetime.now())
+    context = SamowareContext(login, session)
 
     setSessionInfo(context)
 
@@ -54,11 +55,8 @@ def revalidate(context: SamowareContext):
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
         return None
-    context.session = tree.find("session").attrib["urlID"]
-    context.last_revalidate = datetime.now()
-    context.request_id = 0
-    context.command_id = 0
-    context.rand = 0
+
+    context = SamowareContext(context.login, tree.find("session").attrib["urlID"])
 
     setSessionInfo(context)
 
