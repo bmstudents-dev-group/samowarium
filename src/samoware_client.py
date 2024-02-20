@@ -48,19 +48,21 @@ def nextRand(context:int) -> int:
 
 async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost) -> None:
     try:
-
+        logging.info(f"longpolling for {context.login} started")
         while await isActive():
-            context, longPollUpdate = await longPollUpdatesAsync(context)
+            longPollUpdate = await longPollUpdatesAsync(context)
             await onContextUpdate(context)
             logging.debug(f"longPollUpdate: {longPollUpdate}")
             if '<folderReport folder="INBOX-MM-1" mode="notify"/>' in longPollUpdate:
                 updates = getInboxUpdates(context)
+                await onContextUpdate(context)
                 for update in updates:
                     if update["mode"] != "added":
                         continue
                     logging.info(f"new mail for {context.login}")
                     logging.debug(f'email flags: {update["flags"]}')
                     mail_text = getMailTextById(context, update["uid"])
+                    await onContextUpdate(context)
                     mail_plaintext = html.escape(mail_text)
                     to_str = ""
                     for i in range(len(update["to_name"])):
