@@ -2,11 +2,9 @@ import telegram_bot
 import samoware_client
 from samoware_client import SamowareContext
 import database
-import html
 import asyncio
 import logging
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -20,7 +18,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.DEBUG)
 
 
-def startSamowareLongPolling(telegram_id:int, context:SamowareContext):
+def startSamowareLongPolling(telegram_id:int, context:SamowareContext) -> None:
     async def _isActive():
         nonlocal telegram_id
         return database.isClientActive(telegram_id)
@@ -41,7 +39,7 @@ def startSamowareLongPolling(telegram_id:int, context:SamowareContext):
     samoware_client.startLongPolling(context, _isActive, _onMail, _onContextUpdate, _onSessionLost)
 
 
-async def onMail(telegram_id:int, mail:samoware_client.Mail):
+async def onMail(telegram_id:int, mail:samoware_client.Mail) -> None:
     from_str = f'[{mail.from_name}](copy-this-mail.example/{mail.from_mail})'
     to_str = ''
     for i in range(len(mail.to_name)):
@@ -55,7 +53,7 @@ async def onMail(telegram_id:int, mail:samoware_client.Mail):
     )
 
 
-async def onSessionLost(telegram_id:int):
+async def onSessionLost(telegram_id:int) -> None:
     database.removeClient(telegram_id)
     await telegram_bot.send_message(
         telegram_id,
@@ -64,7 +62,7 @@ async def onSessionLost(telegram_id:int):
     )
 
 
-async def activate(telegram_id, samovar_login, samovar_password):
+async def activate(telegram_id:int, samovar_login:int, samovar_password:int) -> None:
     if database.isClientActive(telegram_id):
         await telegram_bot.send_message(telegram_id, "Samowarium уже включен")
         return
@@ -82,7 +80,7 @@ async def activate(telegram_id, samovar_login, samovar_password):
     logging.info(f"User {telegram_id} activated bot")
 
 
-async def deactivate(telegram_id):
+async def deactivate(telegram_id:int) -> None:
     if not database.isClientActive(telegram_id):
         await telegram_bot.send_message(telegram_id, "Samowarium уже был выключен")
         return
@@ -94,16 +92,13 @@ async def deactivate(telegram_id):
     logging.info(f"User {telegram_id} stopped bot")
 
 
-def loadAllClients():
+async def main() -> None:
     logging.info("loading clients...")
     for client in database.getAllClients():
         samoware_context = database.getSamowareContext(client[0])
         startSamowareLongPolling(client[0], samoware_context)
-    logging.info("revalidated clients")
+    logging.info("loaded clients")
 
-
-async def main():
-    loadAllClients()
     await telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
     await asyncio.gather(*asyncio.all_tasks())
 

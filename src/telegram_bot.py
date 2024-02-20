@@ -44,12 +44,12 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await activate(user, login, password)
 
 
-async def send_message(telegram_id, message, format=None):
+async def send_message(telegram_id:int, message:str, format:str=None) -> None:
     logging.debug(f'sending message "{message}" to {telegram_id}')
     await application.bot.send_message(telegram_id, message, parse_mode=format)
 
 
-async def startBot(onActivate, onDeactivate):
+async def startBot(onActivate, onDeactivate) -> None:
     global application, activate, deactivate
     logging.info("starting telegram bot...")
     activate = onActivate

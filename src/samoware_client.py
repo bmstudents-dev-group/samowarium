@@ -32,21 +32,21 @@ class Mail:
         self.subject = subject
         self.plain_text = plain_text
 
-def nextRequestId(context):
+def nextRequestId(context:int) -> int:
     context.request_id += 1
     return context.request_id
 
 
-def nextCommandId(context):
+def nextCommandId(context:int) -> int:
     context.command_id += 1
     return context.command_id
 
 
-def nextRand(context):
+def nextRand(context:int) -> int:
     context.rand += 1
     return context.rand
 
-async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost):
+async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost) -> None:
     try:
 
         while await isActive():
@@ -81,11 +81,11 @@ async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUp
         await onSessionLost()
 
 
-def startLongPolling(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost):
+def startLongPolling(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost) -> None:
     asyncio.create_task(longPollingTask(context, isActive, onMail, onContextUpdate, onSessionLost))
 
 
-def login(login, password):
+def login(login:str, password:str) -> SamowareContext:
     response = requests.get(
         f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     )
@@ -101,7 +101,7 @@ def login(login, password):
     return context
 
 
-def revalidate(context: SamowareContext):
+def revalidate(context: SamowareContext) -> None:
     response = requests.get(
         f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={context.login}&sessionid={context.session}&killOld=1"
     )
@@ -115,10 +115,8 @@ def revalidate(context: SamowareContext):
     setSessionInfo(context)
     openInbox(context)
 
-    return context
 
-
-def openInbox(context):
+def openInbox(context: SamowareContext) -> None:
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><listKnownValues id="{nextCommandId(context)}"/><mailboxList filter="%" pureFolder="yes" id="{nextCommandId(context)}"/><mailboxList filter="%/%" pureFolder="yes" id="{nextCommandId(context)}"/><folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{nextCommandId(context)}"><field>FLAGS</field><field>E-From</field><field>Subject</field><field>Pty</field><field>Content-Type</field><field>INTERNALDATE</field><field>SIZE</field><field>E-To</field><field>E-Cc</field><field>E-Reply-To</field><field>X-Color</field><field>Disposition-Notification-To</field><field>X-Request-DSN</field><field>References</field><field>Message-ID</field></folderOpen><setSessionOption name="reportMailboxChanges" value="yes" id="{nextCommandId(context)}"/></XIMSS>',
@@ -129,7 +127,7 @@ def openInbox(context):
         logging.error("response: " + str(response.text))
 
 
-def getMails(context, first, last):
+def getMails(context: SamowareContext, first:int, last:int) -> list:
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId(context)}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>',
@@ -150,7 +148,7 @@ def getMails(context, first, last):
     return mails
 
 
-async def longPollUpdatesAsync(context):
+async def longPollUpdatesAsync(context: SamowareContext) -> str:
     http_session = aiohttp.ClientSession()
     response = await http_session.get(
         f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ackSeq}&maxWait=20&random={nextRand(context)}",
@@ -169,10 +167,10 @@ async def longPollUpdatesAsync(context):
     tree = ET.fromstring(response_text)
     if "respSeq" in tree.attrib:
         context.ackSeq = int(tree.attrib["respSeq"])
-    return context, response_text
+    return response_text
 
 
-def getInboxUpdates(context):
+def getInboxUpdates(context: SamowareContext) -> list:
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId(context)}"/></XIMSS>',
@@ -210,7 +208,7 @@ def getInboxUpdates(context):
     return mails
 
 
-def setSessionInfo(context: SamowareContext):
+def setSessionInfo(context: SamowareContext) -> None:
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         '<XIMSS><prefsRead id="1"><name>Language</name></prefsRead></XIMSS>',
@@ -235,7 +233,7 @@ def setSessionInfo(context: SamowareContext):
     context.cookies = response.cookies
 
 
-def getMailTextById(context, uid):
+def getMailTextById(context: SamowareContext, uid:int) -> str:
     response = requests.get(
         f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
         cookies=context.cookies,
