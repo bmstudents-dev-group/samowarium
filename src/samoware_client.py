@@ -1,21 +1,36 @@
 import aiohttp
+import html
 import requests
+import asyncio
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class SamowareContext:
-    def __init__(self, login, session, request_id=0, command_id=0, rand=0, last_revalidate=datetime.now(), cookies={}):
+    def __init__(self, login, session, request_id = 0, command_id = 0, rand = 0, ackSeq = 0, last_revalidate = datetime.now(), cookies = {}):
         self.login = login
         self.session = session
         self.request_id = request_id
         self.command_id = command_id
         self.rand = rand
+        self.ackSeq = ackSeq
         self.last_revalidate = last_revalidate
         self.cookies = cookies
 
+class Mail:
+    def __init__(self, uid, flags, local_time, utc_time, to_mail, to_name, from_mail, from_name, subject, plain_text):
+        self.uid = uid
+        self.flags = flags
+        self.local_time = local_time
+        self.utc_time = utc_time
+        self.to_mail = to_mail
+        self.to_name = to_name
+        self.from_mail = from_mail
+        self.from_name = from_name
+        self.subject = subject
+        self.plain_text = plain_text
 
 def nextRequestId(context):
     context.request_id += 1
@@ -31,6 +46,44 @@ def nextRand(context):
     context.rand += 1
     return context.rand
 
+async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost):
+    try:
+        
+        while await isActive():
+            context, longPollUpdate = await longPollUpdatesAsync(context)
+            await onContextUpdate(context)
+            logging.debug(f"longPollUpdate: {longPollUpdate}")
+            if '<folderReport folder="INBOX-MM-1" mode="notify"/>' in longPollUpdate:
+                updates = getInboxUpdates(context)
+                for update in updates:
+                    if update["mode"] != "added":
+                        continue
+                    logging.info(f"new mail for {context.login}")
+                    logging.debug(f'email flags: {update["flags"]}')
+                    mail_text = getMailTextById(context, update["uid"])
+                    mail_plaintext = html.escape(mail_text)
+                    to_str = ""
+                    for i in range(len(update["to_name"])):
+                        to_str += f'[{update["to_name"][i]}](copy-this-mail.example/{update["to_mail"][i]})'
+                        if i != len(update["to_name"]) - 1:
+                            to_str += ", "
+                    mail = Mail(update["uid"], update["flags"], update["local_time"], update["utc_time"], update["to_mail"], update["to_name"], update["from_mail"], update["from_name"], update["subject"], mail_plaintext)
+                    await onMail(mail)
+            if context.last_revalidate + timedelta(hours=5) < datetime.now():
+                context = revalidate(context)
+                await onContextUpdate(context)
+        logging.info(f"longpolling for {context.login} stopped")
+
+    except RuntimeError: # this happens when killing samowarium process
+        logging.info(f"longpolling for {context.login} stopped")
+    except Exception as error:
+        logging.exception("exception in client_handler:\n" + str(error))
+        await onSessionLost()
+
+
+def startLongPolling(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost):
+    asyncio.create_task(longPollingTask(context, isActive, onMail, onContextUpdate, onSessionLost))
+
 
 def login(login, password):
     response = requests.get(
@@ -43,6 +96,7 @@ def login(login, password):
     context = SamowareContext(login, session)
 
     setSessionInfo(context)
+    openInbox(context)
 
     return context
 
@@ -59,6 +113,7 @@ def revalidate(context: SamowareContext):
     context = SamowareContext(context.login, tree.find("session").attrib["urlID"])
 
     setSessionInfo(context)
+    openInbox(context)
 
     return context
 
@@ -95,10 +150,10 @@ def getMails(context, first, last):
     return mails
 
 
-async def longPollUpdatesAsync(context, ackSeq):
+async def longPollUpdatesAsync(context):
     http_session = aiohttp.ClientSession()
     response = await http_session.get(
-        f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand(context)}",
+        f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ackSeq}&maxWait=20&random={nextRand(context)}",
         cookies=context.cookies,
     )
     response_text = await response.text()
@@ -113,8 +168,8 @@ async def longPollUpdatesAsync(context, ackSeq):
         raise AttributeError
     tree = ET.fromstring(response_text)
     if "respSeq" in tree.attrib:
-        ackSeq = int(tree.attrib["respSeq"])
-    return ackSeq, response_text
+        context.ackSeq = int(tree.attrib["respSeq"])
+    return context, response_text
 
 
 def getInboxUpdates(context):
@@ -180,7 +235,7 @@ def setSessionInfo(context: SamowareContext):
     context.cookies = response.cookies
 
 
-def getMailById(context, uid):
+def getMailTextById(context, uid):
     response = requests.get(
         f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
         cookies=context.cookies,

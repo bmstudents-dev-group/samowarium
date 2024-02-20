@@ -14,15 +14,15 @@ def addClient(telegram_id, samoware_login, samovar_session):
     db.commit()
 
 
-def setSession(telegram_id, samovar_session):
+def setSamowareContext(telegram_id, samoware_context:SamowareContext):
     db.execute(
         "UPDATE clients SET samoware_session=? WHERE telegram_id=?",
-        (samovar_session, telegram_id),
+        (samoware_context.session, telegram_id),
     )
     db.commit()
 
 
-def getSession(telegram_id) -> SamowareContext:
+def getSamowareContext(telegram_id) -> SamowareContext:
     samoware_login, samoware_session = db.execute(
         "SELECT samoware_login, samoware_session FROM clients WHERE telegram_id=?",
         (telegram_id,),

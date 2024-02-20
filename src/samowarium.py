@@ -20,61 +20,48 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.DEBUG)
 
 
-async def client_handler(telegram_id):
-    try:
-
-        samoware_context = database.getSession(telegram_id)
-        samoware_context = revalidateClient(samoware_context, telegram_id)
-        samoware_client.openInbox(samoware_context)
-
-        ackSeq = 0
-        while database.isClientActive(telegram_id):
-            ackSeq, longPollUpdate = await samoware_client.longPollUpdatesAsync(
-                samoware_context, ackSeq
-            )
-            logging.debug(f"longPollUpdate: {longPollUpdate}")
-            if '<folderReport folder="INBOX-MM-1" mode="notify"/>' in longPollUpdate:
-                updates = samoware_client.getInboxUpdates(samoware_context)
-                for update in updates:
-                    if update["mode"] != "added":
-                        continue
-                    logging.info(f"new mail for user {telegram_id}")
-                    logging.debug(f'email flags: {update["flags"]}')
-                    mail = samoware_client.getMailById(samoware_context, update["uid"])
-                    mail_plaintext = html.escape(mail)
-                    to_str = ""
-                    for i in range(len(update["to_name"])):
-                        to_str += f'[{update["to_name"][i]}](copy-this-mail.example/{update["to_mail"][i]})'
-                        if i != len(update["to_name"]) - 1:
-                            to_str += ", "
-                    await telegram_bot.send_message(
-                        telegram_id,
-                        f'{update["local_time"].strftime("%d.%m.%Y %H:%M")}\n\nОт кого: [{update["from_name"]}](copy-this-mail.example/{update["from_mail"]})\n\nКому: {to_str}\n\n*{update["subject"]}*\n\n{mail_plaintext}',
-                        "markdown",
-                    )
-            if samoware_context.last_revalidate + timedelta(hours=5) < datetime.now():
-                samoware_context = revalidateClient(samoware_context, telegram_id)
-                samoware_client.openInbox(samoware_context)
-                ackSeq = 0
-
-    except RuntimeError:
-        logging.info(f"longpolling for user {telegram_id} stopped")
-    except Exception as error:
+def startSamowareLongPolling(telegram_id:int, context:SamowareContext):
+    async def _isActive():
+        nonlocal telegram_id
+        return database.isClientActive(telegram_id)
+    async def _onMail(mail:samoware_client.Mail):
+        nonlocal telegram_id
+        await onMail(telegram_id, mail)
+    async def _onContextUpdate(context: SamowareContext):
+        nonlocal telegram_id
+        database.setSamowareContext(telegram_id, context)
+    async def _onSessionLost():
+        nonlocal telegram_id
         database.removeClient(telegram_id)
-        logging.exception("exception in client_handler:\n" + str(error))
         await telegram_bot.send_message(
             telegram_id,
             "Ваша сессия Samoware истекла. Чтобы продолжить получать письма, введите\n/login _логин_ _пароль_",
             format="markdown",
         )
-        return
+    samoware_client.startLongPolling(context, _isActive, _onMail, _onContextUpdate, _onSessionLost)
 
 
-def revalidateClient(samoware_context: SamowareContext, telegram_id: int):
-    samoware_context = samoware_client.revalidate(samoware_context)
-    database.setSession(telegram_id, samoware_context.session)
-    logging.info(f"revalidated client {telegram_id}")
-    return samoware_context
+async def onMail(telegram_id:int, mail:samoware_client.Mail):
+    from_str = f'[{mail.from_name}](copy-this-mail.example/{mail.from_mail})'
+    to_str = ''
+    for i in range(len(mail.to_name)):
+        to_str += f'[{mail.to_name[i]}](copy-this-mail.example/{mail.to_mail[i]})'
+        if i != len(mail.to_name) - 1:
+            to_str += ", "
+    await telegram_bot.send_message(
+        telegram_id,
+        f'{mail.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n*{mail.subject}*\n\n{mail.plain_text}',
+        "markdown",
+    )
+
+
+async def onSessionLost(telegram_id:int):
+    database.removeClient(telegram_id)
+    await telegram_bot.send_message(
+        telegram_id,
+        "Ваша сессия Samoware истекла. Чтобы продолжить получать письма, введите\n/login _логин_ _пароль_",
+        format="markdown",
+    )
 
 
 async def activate(telegram_id, samovar_login, samovar_password):
@@ -87,7 +74,7 @@ async def activate(telegram_id, samovar_login, samovar_password):
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
     database.addClient(telegram_id, samovar_login, context.session)
-    asyncio.create_task(client_handler(telegram_id))
+    startSamowareLongPolling(telegram_id, context)
     await telegram_bot.send_message(
         telegram_id,
         "Samowarium активирован!\nНовые письма будут пересылаться с вашей бауманской почты сюда",
@@ -110,7 +97,8 @@ async def deactivate(telegram_id):
 def loadAllClients():
     logging.info("loading clients...")
     for client in database.getAllClients():
-        asyncio.create_task(client_handler(client[0]))
+        samoware_context = database.getSamowareContext(client[0])
+        startSamowareLongPolling(client[0], samoware_context)
     logging.info("revalidated clients")
 
 
