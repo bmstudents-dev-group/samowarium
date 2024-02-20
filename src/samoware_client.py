@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 revalidate_interval = timedelta(minutes=1)
 
 class SamowareContext:
-    def __init__(self, login:str, session:str, request_id:int = 0, command_id:int = 0, rand:int = 0, ackSeq:int = 0, last_revalidate:datetime = datetime.now(), cookies:dict = {}):
+    def __init__(self, login:str, session:str, request_id:int = 0, command_id:int = 0, rand:int = 0, ackSeq:int = 0, last_revalidate:datetime = None, cookies:dict = {}):
         self.login = login
         self.session = session
         self.request_id = request_id
@@ -19,6 +19,8 @@ class SamowareContext:
         self.ackSeq = ackSeq
         self.last_revalidate = last_revalidate
         self.cookies = cookies
+        if last_revalidate is None:
+            self.last_revalidate = datetime.now()
 
 class Mail:
     def __init__(self, uid, flags, local_time, utc_time, to_mail, to_name, from_mail, from_name, subject, plain_text):
