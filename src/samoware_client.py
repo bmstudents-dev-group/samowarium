@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 import logging
 from datetime import datetime, timedelta
 
-revalidate_interval = timedelta(hours=5)
+revalidate_interval = timedelta(minutes=1)
 
 class SamowareContext:
     def __init__(self, login:str, session:str, request_id:int = 0, command_id:int = 0, rand:int = 0, ackSeq:int = 0, last_revalidate:datetime = datetime.now(), cookies:dict = {}):
@@ -73,7 +73,7 @@ async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUp
                     mail = Mail(update["uid"], update["flags"], update["local_time"], update["utc_time"], update["to_mail"], update["to_name"], update["from_mail"], update["from_name"], update["subject"], mail_plaintext)
                     await onMail(mail)
             if context.last_revalidate + revalidate_interval < datetime.now():
-                revalidate(context)
+                context = revalidate(context)
                 await onContextUpdate(context)
         logging.info(f"longpolling for {context.login} stopped")
 
@@ -104,7 +104,7 @@ def login(login:str, password:str) -> SamowareContext|None:
     return context
 
 
-def revalidate(context: SamowareContext) -> None:
+def revalidate(context: SamowareContext) -> SamowareContext:
     response = requests.get(
         f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={context.login}&sessionid={context.session}&killOld=1"
     )
@@ -117,6 +117,10 @@ def revalidate(context: SamowareContext) -> None:
 
     setSessionInfo(context)
     openInbox(context)
+
+    logging.info(f"revalidated {context.login}")
+
+    return context
 
 
 def openInbox(context: SamowareContext) -> None:
