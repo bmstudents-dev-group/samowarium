@@ -40,7 +40,7 @@ def isClientActive(telegram_id:int) -> bool:
     return result != 0
 
 
-def getAllClients() -> None:
+def getAllClients() -> list:
     return db.execute("SELECT telegram_id FROM clients").fetchall()
 
 

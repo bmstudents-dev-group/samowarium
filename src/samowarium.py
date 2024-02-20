@@ -62,7 +62,7 @@ async def onSessionLost(telegram_id:int) -> None:
     )
 
 
-async def activate(telegram_id:int, samovar_login:int, samovar_password:int) -> None:
+async def activate(telegram_id:int, samovar_login:str, samovar_password:str) -> None:
     if database.isClientActive(telegram_id):
         await telegram_bot.send_message(telegram_id, "Samowarium уже включен")
         return

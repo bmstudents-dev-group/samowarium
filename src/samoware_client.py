@@ -32,17 +32,17 @@ class Mail:
         self.subject = subject
         self.plain_text = plain_text
 
-def nextRequestId(context:int) -> int:
+def nextRequestId(context:SamowareContext) -> int:
     context.request_id += 1
     return context.request_id
 
 
-def nextCommandId(context:int) -> int:
+def nextCommandId(context:SamowareContext) -> int:
     context.command_id += 1
     return context.command_id
 
 
-def nextRand(context:int) -> int:
+def nextRand(context:SamowareContext) -> int:
     context.rand += 1
     return context.rand
 
@@ -72,7 +72,7 @@ async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUp
                     mail = Mail(update["uid"], update["flags"], update["local_time"], update["utc_time"], update["to_mail"], update["to_name"], update["from_mail"], update["from_name"], update["subject"], mail_plaintext)
                     await onMail(mail)
             if context.last_revalidate + timedelta(hours=5) < datetime.now():
-                context = revalidate(context)
+                revalidate(context)
                 await onContextUpdate(context)
         logging.info(f"longpolling for {context.login} stopped")
 
@@ -87,7 +87,7 @@ def startLongPolling(context:SamowareContext, isActive, onMail, onContextUpdate,
     asyncio.create_task(longPollingTask(context, isActive, onMail, onContextUpdate, onSessionLost))
 
 
-def login(login:str, password:str) -> SamowareContext:
+def login(login:str, password:str) -> SamowareContext|None:
     response = requests.get(
         f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     )
