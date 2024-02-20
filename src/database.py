@@ -1,33 +1,36 @@
 import sqlite3
-from datetime import datetime
+import pickle
 
 from samoware_client import SamowareContext
 
 db = sqlite3.connect("database.db", check_same_thread=False)
 
 
-def addClient(telegram_id, samoware_login, samovar_session):
+def addClient(telegram_id, context):
+    context_encoded = pickle.dumps(context)
     db.execute(
-        "INSERT INTO clients VALUES(?, ?, ?)",
-        (telegram_id, samoware_login, samovar_session),
+        "INSERT INTO clients VALUES(?, ?)",
+        (telegram_id, context_encoded),
     )
     db.commit()
 
 
-def setSamowareContext(telegram_id, samoware_context:SamowareContext):
+def setSamowareContext(telegram_id, context:SamowareContext):
+    context_encoded = pickle.dumps(context)
     db.execute(
-        "UPDATE clients SET samoware_session=? WHERE telegram_id=?",
-        (samoware_context.session, telegram_id),
+        "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
+        (context_encoded, telegram_id),
     )
     db.commit()
 
 
 def getSamowareContext(telegram_id) -> SamowareContext:
-    samoware_login, samoware_session = db.execute(
-        "SELECT samoware_login, samoware_session FROM clients WHERE telegram_id=?",
+    context_encoded = db.execute(
+        "SELECT samoware_context FROM clients WHERE telegram_id=?",
         (telegram_id,),
     ).fetchone()
-    return SamowareContext(samoware_login, samoware_session, 0, 0, 0, datetime.now())
+    context = pickle.loads(context_encoded[0])
+    return context
 
 
 def isClientActive(telegram_id):

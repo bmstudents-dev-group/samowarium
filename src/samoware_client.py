@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 
 class SamowareContext:
-    def __init__(self, login, session, request_id = 0, command_id = 0, rand = 0, ackSeq = 0, last_revalidate = datetime.now(), cookies = {}):
+    def __init__(self, login:str, session:str, request_id:int = 0, command_id:int = 0, rand:int = 0, ackSeq:int = 0, last_revalidate:datetime = datetime.now(), cookies:dict = {}):
         self.login = login
         self.session = session
         self.request_id = request_id
@@ -48,7 +48,7 @@ def nextRand(context):
 
 async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost):
     try:
-        
+
         while await isActive():
             context, longPollUpdate = await longPollUpdatesAsync(context)
             await onContextUpdate(context)

@@ -73,7 +73,7 @@ async def activate(telegram_id, samovar_login, samovar_password):
         await telegram_bot.send_message(telegram_id, "Неверный логин или пароль")
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
-    database.addClient(telegram_id, samovar_login, context.session)
+    database.addClient(telegram_id, context)
     startSamowareLongPolling(telegram_id, context)
     await telegram_bot.send_message(
         telegram_id,
