@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 import logging
 from datetime import datetime, timedelta
 
-revalidate_interval = timedelta(minutes=1)
+revalidate_interval = timedelta(hours=5)
 
 class SamowareContext:
     def __init__(self, login:str, session:str, request_id:int = 0, command_id:int = 0, rand:int = 0, ackSeq:int = 0, last_revalidate:datetime = None, cookies:dict = {}):
