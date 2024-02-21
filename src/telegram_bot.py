@@ -52,10 +52,14 @@ async def send_message(
     await application.bot.send_message(telegram_id, message, parse_mode=format)
 
 
-async def send_attachments(telegram_id: int, attachment_files: list, attachment_names: list[str]):
+async def send_attachments(
+    telegram_id: int, attachment_files: list, attachment_names: list[str]
+):
     media_group = []
     for i in range(len(attachment_files)):
-        media_group.append(InputMediaDocument(attachment_files[i], filename=attachment_names[i]))
+        media_group.append(
+            InputMediaDocument(attachment_files[i], filename=attachment_names[i])
+        )
     await application.bot.send_media_group(telegram_id, media_group)
 
 
