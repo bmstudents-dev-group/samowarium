@@ -4,6 +4,7 @@ from samoware_client import SamowareContext
 import database
 import asyncio
 import logging
+import html
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -52,11 +53,16 @@ async def onMail(telegram_id: int, mail: samoware_client.Mail) -> None:
         to_str += f"[{mail.to_name[i]}](copy-this-mail.example/{mail.to_mail[i]})"
         if i != len(mail.to_name) - 1:
             to_str += ", "
+    plaintext = html.escape(mail.text)
     await telegram_bot.send_message(
         telegram_id,
-        f'{mail.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n*{mail.subject}*\n\n{mail.plain_text}',
+        f'{mail.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n*{mail.subject}*\n\n{plaintext}',
         "markdown",
     )
+    if len(mail.attachment_files) > 0:
+        await telegram_bot.send_attachments(
+            telegram_id, mail.attachment_files, mail.attachment_names
+        )
 
 
 async def onSessionLost(telegram_id: int) -> None:

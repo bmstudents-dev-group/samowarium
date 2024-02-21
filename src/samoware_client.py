@@ -1,5 +1,4 @@
 import aiohttp
-import html
 import requests
 import asyncio
 import xml.etree.ElementTree as ET
@@ -46,7 +45,9 @@ class Mail:
         from_mail,
         from_name,
         subject,
-        plain_text,
+        text,
+        attachment_files,
+        attachment_names,
     ):
         self.uid = uid
         self.flags = flags
@@ -57,7 +58,16 @@ class Mail:
         self.from_mail = from_mail
         self.from_name = from_name
         self.subject = subject
-        self.plain_text = plain_text
+        self.text = text
+        self.attachment_files = attachment_files
+        self.attachment_names = attachment_names
+
+
+class MailBody:
+    def __init__(self, text: str, attachment_files: list, attachment_names: list[str]):
+        self.text = text
+        self.attachment_files = attachment_files
+        self.attachment_names = attachment_names
 
 
 def nextRequestId(context: SamowareContext) -> int:
@@ -92,9 +102,8 @@ async def longPollingTask(
                         continue
                     logging.info(f"new mail for {context.login}")
                     logging.debug(f'email flags: {update["flags"]}')
-                    mail_text = getMailTextById(context, update["uid"])
+                    mail = getMailBodyById(context, update["uid"])
                     await onContextUpdate(context)
-                    mail_plaintext = html.escape(mail_text)
                     to_str = ""
                     for i in range(len(update["to_name"])):
                         to_str += f'[{update["to_name"][i]}](copy-this-mail.example/{update["to_mail"][i]})'
@@ -110,7 +119,9 @@ async def longPollingTask(
                         update["from_mail"],
                         update["from_name"],
                         update["subject"],
-                        mail_plaintext,
+                        mail.text,
+                        mail.attachment_files,
+                        mail.attachment_names,
                     )
                     await onMail(mail)
             if context.last_revalidate + revalidate_interval < datetime.now():
@@ -285,11 +296,20 @@ def setSessionInfo(context: SamowareContext) -> None:
     context.cookies = response.cookies
 
 
-def getMailTextById(context: SamowareContext, uid: int) -> str:
+def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
     response = requests.get(
         f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
         cookies=context.cookies,
     )
     tree = BeautifulSoup(response.text, "html.parser")
     logging.debug("mail body: " + str(tree.encode()))
-    return tree.find("tt").text
+    text = tree.find("tt").text
+    attachment_files = []
+    attachment_names = []
+    for attachment_html in tree.find_all("cg-message-attachment"):
+        attachment_url = "https://student.bmstu.ru" + attachment_html["attachment-ref"]
+        file = requests.get(attachment_url, cookies=context.cookies, stream=True).raw
+        name = attachment_html["attachment-name"]
+        attachment_files.append(file)
+        attachment_names.append(name)
+    return MailBody(text, attachment_files, attachment_names)
