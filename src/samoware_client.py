@@ -40,6 +40,9 @@ def login(login, password):
         return None
     session = tree.find("session").attrib["urlID"]
     context = SamowareContext(login, session, 0, 0, 0, datetime.now())
+
+    setSessionInfo(context)
+
     return context
 
 
@@ -56,6 +59,9 @@ def revalidate(context: SamowareContext):
     context.request_id = 0
     context.command_id = 0
     context.rand = 0
+
+    setSessionInfo(context)
+
     return context
 
 
@@ -63,6 +69,7 @@ def openInbox(context):
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><listKnownValues id="{nextCommandId(context)}"/><mailboxList filter="%" pureFolder="yes" id="{nextCommandId(context)}"/><mailboxList filter="%/%" pureFolder="yes" id="{nextCommandId(context)}"/><folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{nextCommandId(context)}"><field>FLAGS</field><field>E-From</field><field>Subject</field><field>Pty</field><field>Content-Type</field><field>INTERNALDATE</field><field>SIZE</field><field>E-To</field><field>E-Cc</field><field>E-Reply-To</field><field>X-Color</field><field>Disposition-Notification-To</field><field>X-Request-DSN</field><field>References</field><field>Message-ID</field></folderOpen><setSessionOption name="reportMailboxChanges" value="yes" id="{nextCommandId(context)}"/></XIMSS>',
+        cookies=context.cookies,
     )
     if response.status_code != 200:
         logging.error("received non 200 code: " + str(response.status_code))
@@ -73,6 +80,7 @@ def getMails(context, first, last):
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId(context)}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>',
+        cookies=context.cookies,
     )
     tree = ET.fromstring(response.text)
 
@@ -92,7 +100,8 @@ def getMails(context, first, last):
 async def longPollUpdatesAsync(context, ackSeq):
     http_session = aiohttp.ClientSession()
     response = await http_session.get(
-        f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand(context)}"
+        f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={ackSeq}&maxWait=20&random={nextRand(context)}",
+        cookies=context.cookies,
     )
     response_text = await response.text()
     await http_session.close()
@@ -103,7 +112,7 @@ async def longPollUpdatesAsync(context, ackSeq):
         logging.error(
             f"Samoware longpoll response code: {response.status}, text: {response_text}"
         )
-        return ackSeq, ""
+        raise AttributeError
     tree = ET.fromstring(response_text)
     if "respSeq" in tree.attrib:
         ackSeq = int(tree.attrib["respSeq"])
@@ -114,6 +123,7 @@ def getInboxUpdates(context):
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId(context)}"/></XIMSS>',
+        cookies=context.cookies,
     )
     if response.status_code != 200:
         logging.error("received non 200 code: " + str(response.status_code))
@@ -127,19 +137,55 @@ def getInboxUpdates(context):
         mail["mode"] = element.attrib["mode"]
         mail["uid"] = element.attrib["UID"]
         if element.attrib["mode"] == "added" or element.attrib["mode"] == "updated":
+            mail["local_time"] = datetime.strptime(
+                element.find("INTERNALDATE").attrib["localTime"], "%Y%m%dT%H%M%S"
+            )
+            mail["utc_time"] = datetime.strptime(
+                element.find("INTERNALDATE").text, "%Y%m%dT%H%M%SZ"
+            )
             mail["flags"] = element.find("FLAGS").text
-            mail["to_mail"] = element.find("E-To").text
             mail["from_mail"] = element.find("E-From").text
             mail["from_name"] = element.find("E-From").attrib["realName"]
             mail["subject"] = element.find("Subject").text
+            mail["to_mail"] = []
+            mail["to_name"] = []
+            for el in element.findall("E-To"):
+                mail["to_mail"].append(el.text)
+                mail["to_name"].append(el.attrib["realName"])
 
         mails.append(mail)
     return mails
 
 
+def setSessionInfo(context: SamowareContext):
+    response = requests.post(
+        f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
+        '<XIMSS><prefsRead id="1"><name>Language</name></prefsRead></XIMSS>',
+    )
+
+    requests.post(
+        f"https://student.bmstu.ru/Session/{context.session}/sessionadmin.wcgp",
+        files=(
+            ("op", (None, "setSessionInfo")),
+            ("paramType", (None, "json")),
+            (
+                "param",
+                (
+                    None,
+                    '{"platform":"Linux x86_64","clientName":"hSamoware","browser":"Firefox 122"}',
+                ),
+            ),
+            ("session", (None, context.session)),
+        ),
+        cookies=response.cookies,
+    )
+    context.cookies = response.cookies
+
+
 def getMailById(context, uid):
     response = requests.get(
-        f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}"
+        f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
+        cookies=context.cookies,
     )
     tree = BeautifulSoup(response.text, "html.parser")
     logging.debug("mail body: " + str(tree.encode()))
