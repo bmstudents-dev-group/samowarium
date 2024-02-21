@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 import logging
 from datetime import datetime, timedelta
 
-revalidate_interval = timedelta(hours=5)
+REVALIDATE_INTERVAL = timedelta(hours=5)
 
 
 class SamowareContext:
@@ -113,12 +113,12 @@ async def longPollingTask(
                         mail_plaintext,
                     )
                     await onMail(mail)
-            if context.last_revalidate + revalidate_interval < datetime.now():
+            if context.last_revalidate + REVALIDATE_INTERVAL < datetime.now():
                 context = revalidate(context)
                 await onContextUpdate(context)
         logging.info(f"longpolling for {context.login} stopped")
 
-    except RuntimeError:  # this happens when killing samowarium process
+    except RuntimeError:  # It happens when samowarium has been killed
         logging.info(f"longpolling for {context.login} stopped")
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
