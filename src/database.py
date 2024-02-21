@@ -15,7 +15,7 @@ def addClient(telegram_id: int, context: SamowareContext) -> None:
     db.commit()
 
 
-def setSamowareContext(telegram_id:int, context:SamowareContext) -> None:
+def setSamowareContext(telegram_id: int, context: SamowareContext) -> None:
     context_encoded = pickle.dumps(context)
     db.execute(
         "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
@@ -24,7 +24,7 @@ def setSamowareContext(telegram_id:int, context:SamowareContext) -> None:
     db.commit()
 
 
-def getSamowareContext(telegram_id:int) -> SamowareContext:
+def getSamowareContext(telegram_id: int) -> SamowareContext:
     context_encoded = db.execute(
         "SELECT samoware_context FROM clients WHERE telegram_id=?",
         (telegram_id,),
@@ -33,7 +33,7 @@ def getSamowareContext(telegram_id:int) -> SamowareContext:
     return context
 
 
-def isClientActive(telegram_id:int) -> bool:
+def isClientActive(telegram_id: int) -> bool:
     result = db.execute(
         "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
     ).fetchone()[0]
@@ -44,6 +44,6 @@ def getAllClients() -> list:
     return db.execute("SELECT telegram_id FROM clients").fetchall()
 
 
-def removeClient(telegram_id:int) -> None:
+def removeClient(telegram_id: int) -> None:
     db.execute("DELETE FROM clients WHERE telegram_id=?", (telegram_id,))
     db.commit()
