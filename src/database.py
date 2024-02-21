@@ -1,46 +1,49 @@
 import sqlite3
-from datetime import datetime
+import pickle
 
 from samoware_client import SamowareContext
 
 db = sqlite3.connect("database.db", check_same_thread=False)
 
 
-def addClient(telegram_id, samoware_login, samovar_session):
+def addClient(telegram_id: int, context: SamowareContext) -> None:
+    context_encoded = pickle.dumps(context)
     db.execute(
-        "INSERT INTO clients VALUES(?, ?, ?)",
-        (telegram_id, samoware_login, samovar_session),
+        "INSERT INTO clients VALUES(?, ?)",
+        (telegram_id, context_encoded),
     )
     db.commit()
 
 
-def setSession(telegram_id, samovar_session):
+def setSamowareContext(telegram_id: int, context: SamowareContext) -> None:
+    context_encoded = pickle.dumps(context)
     db.execute(
-        "UPDATE clients SET samoware_session=? WHERE telegram_id=?",
-        (samovar_session, telegram_id),
+        "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
+        (context_encoded, telegram_id),
     )
     db.commit()
 
 
-def getSession(telegram_id) -> SamowareContext:
-    samoware_login, samoware_session = db.execute(
-        "SELECT samoware_login, samoware_session FROM clients WHERE telegram_id=?",
+def getSamowareContext(telegram_id: int) -> SamowareContext:
+    context_encoded = db.execute(
+        "SELECT samoware_context FROM clients WHERE telegram_id=?",
         (telegram_id,),
     ).fetchone()
-    return SamowareContext(samoware_login, samoware_session, 0, 0, 0, datetime.now())
+    context = pickle.loads(context_encoded[0])
+    return context
 
 
-def isClientActive(telegram_id):
+def isClientActive(telegram_id: int) -> bool:
     result = db.execute(
         "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
     ).fetchone()[0]
     return result != 0
 
 
-def getAllClients():
+def getAllClients() -> list:
     return db.execute("SELECT telegram_id FROM clients").fetchall()
 
 
-def removeClient(telegram_id):
+def removeClient(telegram_id: int) -> None:
     db.execute("DELETE FROM clients WHERE telegram_id=?", (telegram_id,))
     db.commit()
