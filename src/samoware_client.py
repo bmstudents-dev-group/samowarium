@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 import re
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
-SESSION_TOKEN_PATTERN= re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
+SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
+
 
 class SamowareContext:
     def __init__(
@@ -149,7 +150,7 @@ def login(login: str, password: str) -> SamowareContext | None:
     loginUrl = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     if SESSION_TOKEN_PATTERN.match(password):
         loginUrl = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={password}"
-    
+
     response = requests.get(loginUrl)
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
