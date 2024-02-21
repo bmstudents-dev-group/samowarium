@@ -150,7 +150,6 @@ def login(login: str, password: str) -> SamowareContext | None:
     loginUrl = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     if SESSION_TOKEN_PATTERN.match(password):
         loginUrl = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={password}"
-
     response = requests.get(loginUrl)
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
