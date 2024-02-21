@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InputMediaDocument
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -50,6 +50,17 @@ async def send_message(
 ) -> None:
     logging.debug(f'sending message "{message}" to {telegram_id}')
     await application.bot.send_message(telegram_id, message, parse_mode=format)
+
+
+async def send_attachments(
+    telegram_id: int, attachment_files: list, attachment_names: list[str]
+):
+    media_group = []
+    for i in range(len(attachment_files)):
+        media_group.append(
+            InputMediaDocument(attachment_files[i], filename=attachment_names[i])
+        )
+    await application.bot.send_media_group(telegram_id, media_group)
 
 
 async def startBot(
