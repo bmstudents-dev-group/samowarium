@@ -9,8 +9,19 @@ from datetime import datetime, timedelta
 
 revalidate_interval = timedelta(hours=5)
 
+
 class SamowareContext:
-    def __init__(self, login:str, session:str, request_id:int = 0, command_id:int = 0, rand:int = 0, ackSeq:int = 0, last_revalidate:datetime = None, cookies:dict = {}):
+    def __init__(
+        self,
+        login: str,
+        session: str,
+        request_id: int = 0,
+        command_id: int = 0,
+        rand: int = 0,
+        ackSeq: int = 0,
+        last_revalidate: datetime = None,
+        cookies: dict = {},
+    ):
         self.login = login
         self.session = session
         self.request_id = request_id
@@ -22,8 +33,21 @@ class SamowareContext:
         if last_revalidate is None:
             self.last_revalidate = datetime.now()
 
+
 class Mail:
-    def __init__(self, uid, flags, local_time, utc_time, to_mail, to_name, from_mail, from_name, subject, plain_text):
+    def __init__(
+        self,
+        uid,
+        flags,
+        local_time,
+        utc_time,
+        to_mail,
+        to_name,
+        from_mail,
+        from_name,
+        subject,
+        plain_text,
+    ):
         self.uid = uid
         self.flags = flags
         self.local_time = local_time
@@ -35,21 +59,25 @@ class Mail:
         self.subject = subject
         self.plain_text = plain_text
 
-def nextRequestId(context:SamowareContext) -> int:
+
+def nextRequestId(context: SamowareContext) -> int:
     context.request_id += 1
     return context.request_id
 
 
-def nextCommandId(context:SamowareContext) -> int:
+def nextCommandId(context: SamowareContext) -> int:
     context.command_id += 1
     return context.command_id
 
 
-def nextRand(context:SamowareContext) -> int:
+def nextRand(context: SamowareContext) -> int:
     context.rand += 1
     return context.rand
 
-async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost) -> None:
+
+async def longPollingTask(
+    context: SamowareContext, isActive, onMail, onContextUpdate, onSessionLost
+) -> None:
     try:
         logging.info(f"longpolling for {context.login} started")
         while await isActive():
@@ -72,25 +100,40 @@ async def longPollingTask(context:SamowareContext, isActive, onMail, onContextUp
                         to_str += f'[{update["to_name"][i]}](copy-this-mail.example/{update["to_mail"][i]})'
                         if i != len(update["to_name"]) - 1:
                             to_str += ", "
-                    mail = Mail(update["uid"], update["flags"], update["local_time"], update["utc_time"], update["to_mail"], update["to_name"], update["from_mail"], update["from_name"], update["subject"], mail_plaintext)
+                    mail = Mail(
+                        update["uid"],
+                        update["flags"],
+                        update["local_time"],
+                        update["utc_time"],
+                        update["to_mail"],
+                        update["to_name"],
+                        update["from_mail"],
+                        update["from_name"],
+                        update["subject"],
+                        mail_plaintext,
+                    )
                     await onMail(mail)
             if context.last_revalidate + revalidate_interval < datetime.now():
                 context = revalidate(context)
                 await onContextUpdate(context)
         logging.info(f"longpolling for {context.login} stopped")
 
-    except RuntimeError: # this happens when killing samowarium process
+    except RuntimeError:  # this happens when killing samowarium process
         logging.info(f"longpolling for {context.login} stopped")
     except Exception as error:
         logging.exception("exception in client_handler:\n" + str(error))
         await onSessionLost()
 
 
-def startLongPolling(context:SamowareContext, isActive, onMail, onContextUpdate, onSessionLost) -> None:
-    asyncio.create_task(longPollingTask(context, isActive, onMail, onContextUpdate, onSessionLost))
+def startLongPolling(
+    context: SamowareContext, isActive, onMail, onContextUpdate, onSessionLost
+) -> None:
+    asyncio.create_task(
+        longPollingTask(context, isActive, onMail, onContextUpdate, onSessionLost)
+    )
 
 
-def login(login:str, password:str) -> SamowareContext|None:
+def login(login: str, password: str) -> SamowareContext | None:
     response = requests.get(
         f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     )
@@ -136,7 +179,7 @@ def openInbox(context: SamowareContext) -> None:
         logging.error("response: " + str(response.text))
 
 
-def getMails(context: SamowareContext, first:int, last:int) -> list:
+def getMails(context: SamowareContext, first: int, last: int) -> list:
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId(context)}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>',
@@ -242,7 +285,7 @@ def setSessionInfo(context: SamowareContext) -> None:
     context.cookies = response.cookies
 
 
-def getMailTextById(context: SamowareContext, uid:int) -> str:
+def getMailTextById(context: SamowareContext, uid: int) -> str:
     response = requests.get(
         f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
         cookies=context.cookies,

@@ -8,9 +8,9 @@ import os
 import logging
 from typing import Callable, Awaitable
 
-application:Application|None = None
-activate:Callable[[int, str, str], Awaitable[None]]|None = None
-deactivate:Callable[[int], Awaitable[None]]|None = None
+application: Application | None = None
+activate: Callable[[int, str, str], Awaitable[None]] | None = None
+deactivate: Callable[[int], Awaitable[None]] | None = None
 
 
 async def tg_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -45,12 +45,17 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await activate(user, login, password)
 
 
-async def send_message(telegram_id:int, message:str, format:str|None=None) -> None:
+async def send_message(
+    telegram_id: int, message: str, format: str | None = None
+) -> None:
     logging.debug(f'sending message "{message}" to {telegram_id}')
     await application.bot.send_message(telegram_id, message, parse_mode=format)
 
 
-async def startBot(onActivate:Callable[[int, str, str], Awaitable[None]], onDeactivate:Callable[[int], Awaitable[None]]) -> None:
+async def startBot(
+    onActivate: Callable[[int, str, str], Awaitable[None]],
+    onDeactivate: Callable[[int], Awaitable[None]],
+) -> None:
     global application, activate, deactivate
     logging.info("starting telegram bot...")
     activate = onActivate
