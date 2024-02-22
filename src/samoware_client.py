@@ -139,14 +139,18 @@ async def longPollingTask(
             break
         except Exception as error:
             logging.exception("exception in client_handler:\n" + str(error))
-            if(retry_count < 3):
-                logging.info(f"retry_count={retry_count}. Retrying longpolling for {context.login}...")
+            if retry_count < 3:
+                logging.info(
+                    f"retry_count={retry_count}. Retrying longpolling for {context.login}..."
+                )
                 retry_count += 1
             else:
-                logging.info(f"retry_count={retry_count}. deleting session for {context.login}...")
+                logging.info(
+                    f"retry_count={retry_count}. deleting session for {context.login}..."
+                )
                 await onSessionLost()
                 break
-            
+
     logging.info(f"longpolling for {context.login} stopped")
 
 
