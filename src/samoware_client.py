@@ -90,9 +90,10 @@ def nextRand(context: SamowareContext) -> int:
 async def longPollingTask(
     context: SamowareContext, isActive, onMail, onContextUpdate, onSessionLost
 ) -> None:
-    try:
-        logging.info(f"longpolling for {context.login} started")
-        while await isActive():
+    retry_count = 0
+    logging.info(f"longpolling for {context.login} started")
+    while await isActive():
+        try:
             longPollUpdate = await longPollUpdatesAsync(context)
             await onContextUpdate(context)
             logging.debug(f"longPollUpdate: {longPollUpdate}")
@@ -129,13 +130,24 @@ async def longPollingTask(
             if context.last_revalidate + REVALIDATE_INTERVAL < datetime.now():
                 context = revalidate(context)
                 await onContextUpdate(context)
-        logging.info(f"longpolling for {context.login} stopped")
-
-    except RuntimeError:  # It happens when samowarium has been killed
-        logging.info(f"longpolling for {context.login} stopped")
-    except Exception as error:
-        logging.exception("exception in client_handler:\n" + str(error))
-        await onSessionLost()
+            retry_count = 0
+        except RuntimeError:  # It happens when samowarium has been killed
+            break
+        except AttributeError:  # Session lost
+            logging.info(f"session for {context.login} expired")
+            await onSessionLost()
+            break
+        except Exception as error:
+            logging.exception("exception in client_handler:\n" + str(error))
+            if(retry_count < 3):
+                logging.info(f"retry_count={retry_count}. Retrying longpolling for {context.login}...")
+                retry_count += 1
+            else:
+                logging.info(f"retry_count={retry_count}. deleting session for {context.login}...")
+                await onSessionLost()
+                break
+            
+    logging.info(f"longpolling for {context.login} stopped")
 
 
 def startLongPolling(
