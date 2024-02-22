@@ -291,7 +291,6 @@ def setSessionInfo(context: SamowareContext) -> None:
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         '<XIMSS><prefsRead id="1"><name>Language</name></prefsRead></XIMSS>',
     )
-
     requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sessionadmin.wcgp",
         files=(
