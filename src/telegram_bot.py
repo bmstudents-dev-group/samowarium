@@ -65,7 +65,7 @@ async def send_attachments(
 
 async def tg_about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_html(
-"""
+        """
 Samowarium -- бот, который пересылает входящие письма в личные сообщения телеграм.
 
 Список команд бота:
