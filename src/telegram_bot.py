@@ -63,6 +63,23 @@ async def send_attachments(
     await application.bot.send_media_group(telegram_id, media_group)
 
 
+async def tg_about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_html(
+"""
+Samowarium -- бот, который пересылает входящие письма в личные сообщения телеграм.
+
+Список команд бота:
+/login - выдать боту доступ к почтовому серверу.
+/stop - отозвать доступ и удалить информацию о пользователе.
+/about - получить дополнительную информацию.
+
+Как это работает?
+При передаче пары логин/пароль бот получает от почтового сервера токен сессии, с помощью которого в дальнейшем обрабатывает входящие письма. 
+Бот не хранит пароли пользователей, а лишь использует их однократно во время авторизации для получения токена сессии, после чего их забывает. Токен сессии почтового сервера возможно использовать только для работы с почтой, бот не может с помощью него получить доступ к остальным сервисам МГТУ.
+"""
+    )
+
+
 async def startBot(
     onActivate: Callable[[int, str, str], Awaitable[None]],
     onDeactivate: Callable[[int], Awaitable[None]],
@@ -78,8 +95,9 @@ async def startBot(
     application.add_handler(CommandHandler("start", tg_start))
     application.add_handler(CommandHandler("stop", tg_stop))
     application.add_handler(CommandHandler("login", tg_login))
+    application.add_handler(CommandHandler("about", tg_about))
 
-    logging.debug("starting telegram polling...")
     await application.initialize()
     await application.start()
+    logging.info("starting telegram polling...")
     await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)

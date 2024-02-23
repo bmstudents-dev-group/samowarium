@@ -37,7 +37,7 @@ def startSamowareLongPolling(telegram_id: int, context: SamowareContext) -> None
         database.removeClient(telegram_id)
         await telegram_bot.send_message(
             telegram_id,
-            "Ваша сессия Samoware истекла. Чтобы продолжить получать письма, введите\n/login _логин_ _пароль_",
+            "Сессия доступа к почте истекла. Для продолжения работы необходима повторная авторизация\n/login _логин_ _пароль_",
             format="markdown",
         )
 
@@ -65,41 +65,31 @@ async def onMail(telegram_id: int, mail: samoware_client.Mail) -> None:
         )
 
 
-async def onSessionLost(telegram_id: int) -> None:
-    database.removeClient(telegram_id)
-    await telegram_bot.send_message(
-        telegram_id,
-        "Ваша сессия Samoware истекла. Чтобы продолжить получать письма, введите\n/login _логин_ _пароль_",
-        format="markdown",
-    )
-
-
 async def activate(telegram_id: int, samovar_login: str, samovar_password: str) -> None:
     if database.isClientActive(telegram_id):
-        await telegram_bot.send_message(telegram_id, "Samowarium уже включен")
+        await telegram_bot.send_message(telegram_id, "Доступ уже был выдан.")
         return
     context = samoware_client.login(samovar_login, samovar_password)
     if context is None:
-        await telegram_bot.send_message(telegram_id, "Неверный логин или пароль")
+        await telegram_bot.send_message(telegram_id, "Неверный логин или пароль.")
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
     database.addClient(telegram_id, context)
     startSamowareLongPolling(telegram_id, context)
     await telegram_bot.send_message(
         telegram_id,
-        "Samowarium активирован!\nНовые письма будут пересылаться с вашей бауманской почты сюда",
+        "Доступ выдан. Все новые письма будут пересылаться в этот чат.",
     )
     logging.info(f"User {telegram_id} activated bot")
 
 
 async def deactivate(telegram_id: int) -> None:
     if not database.isClientActive(telegram_id):
-        await telegram_bot.send_message(telegram_id, "Samowarium уже был выключен")
+        await telegram_bot.send_message(telegram_id, "Доступ уже был отозван.")
         return
-    await telegram_bot.send_message(telegram_id, "Удаление ваших данных...")
     database.removeClient(telegram_id)
     await telegram_bot.send_message(
-        telegram_id, "Samowarium выключен.\nМы вам больше писать ничего не будем"
+        telegram_id, "Доступ отозван. Логин и сессия были удалены."
     )
     logging.info(f"User {telegram_id} stopped bot")
 
