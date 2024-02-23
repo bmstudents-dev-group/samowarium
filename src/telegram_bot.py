@@ -16,7 +16,7 @@ deactivate: Callable[[int], Awaitable[None]] | None = None
 async def tg_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logging.debug(f"received /start from {update.effective_user.id}")
     await update.message.reply_html(
-        "Привет, это Samowarium, клиент бауманской почты в телеграме!\nДля активации бота напишите: \n/login <i>логин</i> <i>пароль</i>\nДля отключения бота: /stop"
+        "Выдать доступ боту до почты :\n/login <i>логин</i> <i>пароль</i>\n\nОтозвать доступ:\n/stop\n\nFAQ:\n/about"
     )
 
 
@@ -32,7 +32,7 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     if len(context.args) < 2:
         await update.message.reply_html(
-            "Не верный формат\nДля активации бота напишите\n/login <i>логин</i> <i>пароль</i>"
+            "Неверный формат использования команды:\n/login <i>логин</i> <i>пароль</i>"
         )
         logging.debug(
             f"client entered login and password in wrong format: {context.args}"
