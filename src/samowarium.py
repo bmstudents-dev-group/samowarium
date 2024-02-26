@@ -50,7 +50,9 @@ async def onMail(telegram_id: int, mail: samoware_client.Mail) -> None:
     from_str = f'<a href="copy-this-mail.example/{mail.from_mail}">{mail.from_name}</a>'
     to_str = ""
     for i in range(len(mail.to_name)):
-        to_str += f'<a href="copy-this-mail.example/{mail.to_mail[i]}">{mail.to_name[i]}</a>'
+        to_str += (
+            f'<a href="copy-this-mail.example/{mail.to_mail[i]}">{mail.to_name[i]}</a>'
+        )
         if i != len(mail.to_name) - 1:
             to_str += ", "
     plaintext = html.escape(mail.text)
