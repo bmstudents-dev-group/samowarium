@@ -290,7 +290,6 @@ def getInboxUpdates(context: SamowareContext) -> list:
             mail["to_name"] = []
             for el in element.findall("E-To"):
                 mail["to_mail"].append(el.text)
-                mail["to_name"].append(el.attrib["realName"])
                 if "realName" in el.attrib:
                     mail["to_name"].append(el.attrib["realName"])
                 else:
