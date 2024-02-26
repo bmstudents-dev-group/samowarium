@@ -224,7 +224,10 @@ def getMails(context: SamowareContext, first: int, last: int) -> list:
         mail["flags"] = element.find("FLAGS").text
         mail["to_mail"] = element.find("E-To").text
         mail["from_mail"] = element.find("E-From").text
-        mail["from_name"] = element.find("E-From").attrib["realName"]
+        if "realName" in element.find("E-From").attrib:
+            mail["from_name"] = element.find("E-From").attrib["realName"]
+        else:
+            mail["from_name"] = element.find("E-From").text
         mail["subject"] = element.find("Subject").text
         mails.append(mail)
     return mails
@@ -278,13 +281,19 @@ def getInboxUpdates(context: SamowareContext) -> list:
             )
             mail["flags"] = element.find("FLAGS").text
             mail["from_mail"] = element.find("E-From").text
-            mail["from_name"] = element.find("E-From").attrib["realName"]
+            if "realName" in element.find("E-From").attrib:
+                mail["from_name"] = element.find("E-From").attrib["realName"]
+            else:
+                mail["from_name"] = element.find("E-From").text
             mail["subject"] = element.find("Subject").text
             mail["to_mail"] = []
             mail["to_name"] = []
             for el in element.findall("E-To"):
                 mail["to_mail"].append(el.text)
-                mail["to_name"].append(el.attrib["realName"])
+                if "realName" in el.attrib:
+                    mail["to_name"].append(el.attrib["realName"])
+                else:
+                    mail["to_name"].append(el.text)
 
         mails.append(mail)
     return mails
