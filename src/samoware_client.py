@@ -250,9 +250,7 @@ async def longPollUpdatesAsync(context: SamowareContext) -> str:
         f"Samoware longpoll response code: {response.status}, text: {response_text}"
     )
     if response.status == 550:
-        logging.error(
         logging.error("received 550 code - Samoware Unauthorized")
-        )
         raise UnauthorizedError
     if response.status != 200:
         logging.error(
