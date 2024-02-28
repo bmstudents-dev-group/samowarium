@@ -47,17 +47,19 @@ def startSamowareLongPolling(telegram_id: int, context: SamowareContext) -> None
 
 
 async def onMail(telegram_id: int, mail: samoware_client.Mail) -> None:
-    from_str = f"[{mail.from_name}](copy-this-mail.example/{mail.from_mail})"
+    from_str = f'<a href="copy-this-mail.example/{mail.from_mail}">{mail.from_name}</a>'
     to_str = ""
     for i in range(len(mail.to_name)):
-        to_str += f"[{mail.to_name[i]}](copy-this-mail.example/{mail.to_mail[i]})"
+        to_str += (
+            f'<a href="copy-this-mail.example/{mail.to_mail[i]}">{mail.to_name[i]}</a>'
+        )
         if i != len(mail.to_name) - 1:
             to_str += ", "
     plaintext = html.escape(mail.text)
     await telegram_bot.send_message(
         telegram_id,
-        f'{mail.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n*{mail.subject}*\n\n{plaintext}',
-        "markdown",
+        f'{mail.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n<b>{html.escape(mail.subject)}</b>\n\n{plaintext}',
+        "html",
     )
     if len(mail.attachment_files) > 0:
         await telegram_bot.send_attachments(
