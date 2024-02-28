@@ -210,7 +210,9 @@ def openInbox(context: SamowareContext) -> None:
         cookies=context.cookies,
     )
     if response.status_code == 550:
-        logging.error(f"received 550 code in openInbox - Samoware Unauthorized\nresponse: {response.text}")
+        logging.error(
+            f"received 550 code in openInbox - Samoware Unauthorized\nresponse: {response.text}"
+        )
         raise UnauthorizedError
     if response.status_code != 200:
         logging.error(
@@ -255,7 +257,9 @@ async def longPollUpdatesAsync(context: SamowareContext) -> str:
         f"Samoware longpoll response code: {response.status}, text: {response_text}"
     )
     if response.status == 550:
-        logging.error(f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}")
+        logging.error(
+            f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}"
+        )
         raise UnauthorizedError
     if response.status != 200:
         logging.error(
@@ -275,7 +279,9 @@ def getInboxUpdates(context: SamowareContext) -> list:
         cookies=context.cookies,
     )
     if response.status_code == 550:
-        logging.error(f"received 550 code in getInboxUpdates - Samoware Unauthorized\nresponse: {response.text}")
+        logging.error(
+            f"received 550 code in getInboxUpdates - Samoware Unauthorized\nresponse: {response.text}"
+        )
         raise UnauthorizedError
     if response.status_code != 200:
         logging.error(
@@ -346,7 +352,9 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
         cookies=context.cookies,
     )
     if response.status_code == 550:
-        logging.error(f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {response.text}")
+        logging.error(
+            f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {response.text}"
+        )
         raise UnauthorizedError
     if response.status_code != 200:
         logging.error(
