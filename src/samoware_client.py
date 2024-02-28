@@ -210,7 +210,7 @@ def openInbox(context: SamowareContext) -> None:
         cookies=context.cookies,
     )
     if response.status_code == 550:
-        logging.error("received 550 code in openInbox - Samoware Unauthorized")
+        logging.error(f"received 550 code in openInbox - Samoware Unauthorized\nresponse: {response.text}")
         raise UnauthorizedError
     if response.status_code != 200:
         logging.error(f"received non 200 code in openInbox: {response.status_code}\nresponse: {response.text}")
@@ -253,7 +253,7 @@ async def longPollUpdatesAsync(context: SamowareContext) -> str:
         f"Samoware longpoll response code: {response.status}, text: {response_text}"
     )
     if response.status == 550:
-        logging.error("received 550 code in longPollUpdates - Samoware Unauthorized")
+        logging.error(f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}")
         raise UnauthorizedError
     if response.status != 200:
         logging.error(f"received non 200 code in longPollUpdates: {response.status}\nresponse: {response_text}")
@@ -271,7 +271,7 @@ def getInboxUpdates(context: SamowareContext) -> list:
         cookies=context.cookies,
     )
     if response.status_code == 550:
-        logging.error("received 550 code in getInboxUpdates - Samoware Unauthorized")
+        logging.error(f"received 550 code in getInboxUpdates - Samoware Unauthorized\nresponse: {response.text}")
         raise UnauthorizedError
     if response.status_code != 200:
         logging.error(f"received non 200 code in getInboxUpdates: {response.status_code}\nresponse: {response.text}")
@@ -340,7 +340,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
         cookies=context.cookies,
     )
     if response.status_code == 550:
-        logging.error("received 550 code in getMailBodyById - Samoware Unauthorized")
+        logging.error(f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {response.text}")
         raise UnauthorizedError
     if response.status_code != 200:
         logging.error(f"received non 200 code in getMailBodyById: {response.status_code}\nresponse: {response.text}")
