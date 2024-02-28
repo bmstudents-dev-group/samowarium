@@ -213,7 +213,9 @@ def openInbox(context: SamowareContext) -> None:
         logging.error(f"received 550 code in openInbox - Samoware Unauthorized\nresponse: {response.text}")
         raise UnauthorizedError
     if response.status_code != 200:
-        logging.error(f"received non 200 code in openInbox: {response.status_code}\nresponse: {response.text}")
+        logging.error(
+            f"received non 200 code in openInbox: {response.status_code}\nresponse: {response.text}"
+        )
         raise urllib.error.HTTPError
 
 
@@ -256,7 +258,9 @@ async def longPollUpdatesAsync(context: SamowareContext) -> str:
         logging.error(f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}")
         raise UnauthorizedError
     if response.status != 200:
-        logging.error(f"received non 200 code in longPollUpdates: {response.status}\nresponse: {response_text}")
+        logging.error(
+            f"received non 200 code in longPollUpdates: {response.status}\nresponse: {response_text}"
+        )
         raise urllib.error.HTTPError
     tree = ET.fromstring(response_text)
     if "respSeq" in tree.attrib:
@@ -274,7 +278,9 @@ def getInboxUpdates(context: SamowareContext) -> list:
         logging.error(f"received 550 code in getInboxUpdates - Samoware Unauthorized\nresponse: {response.text}")
         raise UnauthorizedError
     if response.status_code != 200:
-        logging.error(f"received non 200 code in getInboxUpdates: {response.status_code}\nresponse: {response.text}")
+        logging.error(
+            f"received non 200 code in getInboxUpdates: {response.status_code}\nresponse: {response.text}"
+        )
         raise urllib.error.HTTPError
     tree = ET.fromstring(response.text)
     mails = []
@@ -343,7 +349,9 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
         logging.error(f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {response.text}")
         raise UnauthorizedError
     if response.status_code != 200:
-        logging.error(f"received non 200 code in getMailBodyById: {response.status_code}\nresponse: {response.text}")
+        logging.error(
+            f"received non 200 code in getMailBodyById: {response.status_code}\nresponse: {response.text}"
+        )
         raise urllib.error.HTTPError
     tree = BeautifulSoup(response.text, "html.parser")
     logging.debug("mail body: " + str(tree.encode()))
