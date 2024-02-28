@@ -251,7 +251,7 @@ async def longPollUpdatesAsync(context: SamowareContext) -> str:
     )
     if response.status == 550:
         logging.error(
-        logging.error("received non 550 code - Samoware Unauthorized")
+        logging.error("received 550 code - Samoware Unauthorized")
         )
         raise UnauthorizedError
     if response.status != 200:
@@ -272,7 +272,7 @@ def getInboxUpdates(context: SamowareContext) -> list:
         cookies=context.cookies,
     )
     if response.status_code == 550:
-        logging.error("received non 550 code - Samoware Unauthorized")
+        logging.error("received 550 code - Samoware Unauthorized")
         raise UnauthorizedError
     if response.status_code != 200:
         logging.error("received non 200 code: " + str(response.status_code))
@@ -342,7 +342,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
         cookies=context.cookies,
     )
     if response.status_code == 550:
-        logging.error("received non 550 code - Samoware Unauthorized")
+        logging.error("received 550 code - Samoware Unauthorized")
         raise UnauthorizedError
     if response.status_code != 200:
         logging.error("received non 200 code: " + str(response.status_code))
