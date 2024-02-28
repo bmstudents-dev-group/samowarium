@@ -6,9 +6,14 @@ from bs4 import BeautifulSoup
 import logging
 from datetime import datetime, timedelta
 import re
+import urllib.error
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
+
+
+class UnauthorizedError(Exception):
+    pass
 
 
 class SamowareContext:
@@ -133,7 +138,7 @@ async def longPollingTask(
             retry_count = 0
         except RuntimeError:  # It happens when samowarium has been killed
             break
-        except AttributeError:  # Session lost
+        except UnauthorizedError:  # Session lost
             logging.info(f"session for {context.login} expired")
             await onSessionLost()
             break
@@ -204,9 +209,16 @@ def openInbox(context: SamowareContext) -> None:
         f'<XIMSS><listKnownValues id="{nextCommandId(context)}"/><mailboxList filter="%" pureFolder="yes" id="{nextCommandId(context)}"/><mailboxList filter="%/%" pureFolder="yes" id="{nextCommandId(context)}"/><folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{nextCommandId(context)}"><field>FLAGS</field><field>E-From</field><field>Subject</field><field>Pty</field><field>Content-Type</field><field>INTERNALDATE</field><field>SIZE</field><field>E-To</field><field>E-Cc</field><field>E-Reply-To</field><field>X-Color</field><field>Disposition-Notification-To</field><field>X-Request-DSN</field><field>References</field><field>Message-ID</field></folderOpen><setSessionOption name="reportMailboxChanges" value="yes" id="{nextCommandId(context)}"/></XIMSS>',
         cookies=context.cookies,
     )
+    if response.status_code == 550:
+        logging.error(
+            f"received 550 code in openInbox - Samoware Unauthorized\nresponse: {response.text}"
+        )
+        raise UnauthorizedError
     if response.status_code != 200:
-        logging.error("received non 200 code: " + str(response.status_code))
-        logging.error("response: " + str(response.text))
+        logging.error(
+            f"received non 200 code in openInbox: {response.status_code}\nresponse: {response.text}"
+        )
+        raise urllib.error.HTTPError
 
 
 def getMails(context: SamowareContext, first: int, last: int) -> list:
@@ -244,11 +256,16 @@ async def longPollUpdatesAsync(context: SamowareContext) -> str:
     logging.debug(
         f"Samoware longpoll response code: {response.status}, text: {response_text}"
     )
+    if response.status == 550:
+        logging.error(
+            f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}"
+        )
+        raise UnauthorizedError
     if response.status != 200:
         logging.error(
-            f"Samoware longpoll response code: {response.status}, text: {response_text}"
+            f"received non 200 code in longPollUpdates: {response.status}\nresponse: {response_text}"
         )
-        raise AttributeError
+        raise urllib.error.HTTPError
     tree = ET.fromstring(response_text)
     if "respSeq" in tree.attrib:
         context.ackSeq = int(tree.attrib["respSeq"])
@@ -261,10 +278,16 @@ def getInboxUpdates(context: SamowareContext) -> list:
         f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId(context)}"/></XIMSS>',
         cookies=context.cookies,
     )
+    if response.status_code == 550:
+        logging.error(
+            f"received 550 code in getInboxUpdates - Samoware Unauthorized\nresponse: {response.text}"
+        )
+        raise UnauthorizedError
     if response.status_code != 200:
-        logging.error("received non 200 code: " + str(response.status_code))
-        logging.error("response: " + str(response.text))
-        return []
+        logging.error(
+            f"received non 200 code in getInboxUpdates: {response.status_code}\nresponse: {response.text}"
+        )
+        raise urllib.error.HTTPError
     tree = ET.fromstring(response.text)
     mails = []
     for element in tree.findall("folderReport"):
@@ -328,6 +351,16 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
         f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
         cookies=context.cookies,
     )
+    if response.status_code == 550:
+        logging.error(
+            f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {response.text}"
+        )
+        raise UnauthorizedError
+    if response.status_code != 200:
+        logging.error(
+            f"received non 200 code in getMailBodyById: {response.status_code}\nresponse: {response.text}"
+        )
+        raise urllib.error.HTTPError
     tree = BeautifulSoup(response.text, "html.parser")
     logging.debug("mail body: " + str(tree.encode()))
     text = tree.find("tt").text
