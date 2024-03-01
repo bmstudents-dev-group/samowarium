@@ -362,8 +362,8 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
         )
         raise urllib.error.HTTPError
     tree = BeautifulSoup(response.text, "html.parser")
-    mailBodiesHtml = tree.findAll("div",{"class": "samoware-RFC822-body"})
-    
+    mailBodiesHtml = tree.findAll("div", {"class": "samoware-RFC822-body"})
+
     text = ""
     for mailBodyHtml in mailBodiesHtml:
         logging.debug("mail body: " + str(mailBodyHtml.encode()))
