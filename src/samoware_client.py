@@ -361,6 +361,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
             f"received non 200 code in getMailBodyById: {response.status_code}\nresponse: {response.text}"
         )
         raise urllib.error.HTTPError
+    
     tree = BeautifulSoup(response.text, "html.parser")
     mailBodiesHtml = tree.findAll("div", {"class": "samoware-RFC822-body"})
 
