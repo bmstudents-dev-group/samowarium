@@ -13,10 +13,10 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     filename="samowarium.log",
     encoding="utf-8",
-    level=logging.DEBUG,
+    level=logging.INFO,
 )
 
-logging.getLogger("httpx").setLevel(logging.DEBUG)
+logging.getLogger("httpx").setLevel(logging.INFO)
 
 
 def startSamowareLongPolling(telegram_id: int, context: SamowareContext) -> None:
