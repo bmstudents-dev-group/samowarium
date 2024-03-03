@@ -16,7 +16,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-logging.getLogger("httpx").setLevel(logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARN)
 
 
 def startSamowareLongPolling(telegram_id: int, context: SamowareContext) -> None:
