@@ -366,7 +366,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
 
     text = ""
     for mailBodyHtml in mailBodiesHtml:
-        logging.debug("mail body: " + str(mailBodyHtml.encode()))
+        logging.debug("mail body: " + str(mailBodyHtml.encode(recursive=False)))
         foundTextBeg = False
         for element in mailBodyHtml.findChildren():
             if element.has_attr("class") and "textBeg" in element["class"]:
