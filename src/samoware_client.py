@@ -346,6 +346,33 @@ def setSessionInfo(context: SamowareContext) -> None:
     context.cookies = response.cookies
 
 
+def my_get_text(element):
+    text = ""
+    for child in element.descendants:
+        if isinstance(child, bs4.NavigableString):
+            if child.parent.name != "a":
+                text += str(child)
+        elif isinstance(child, bs4.Tag):
+            if child.name == "a" and "href" in child.attrs:
+                href = child["href"]
+                element_text = child.text
+                text += f'<a href="{href}">{element_text}</a>'
+            elif child.name == "hr":
+                text += "\n-----\n"
+
+    if isinstance(element, bs4.NavigableString):
+        return str(element)
+    elif isinstance(element, bs4.Tag):
+        if element.name == "a" and "href" in element.attrs:
+            href = element["href"]
+            element_text = text
+            return f'<a href="{href}">{element_text}</a>'
+        elif element.name == "hr":
+            return "\n-----\n"
+        else:
+            return text
+
+
 def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
     response = requests.get(
         f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
@@ -376,7 +403,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
                 logging.debug("found textEnd")
                 break
             if foundTextBeg:
-                text += element.text
+                text += my_get_text(element)
 
     attachment_files = []
     attachment_names = []
