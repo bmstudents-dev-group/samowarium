@@ -357,15 +357,15 @@ def htmlElementToText(element):
             text = f'<a href="{href}">'
             for child in element.children:
                 text += htmlElementToText(child)
-            text += '</a>'
+            text += "</a>"
             return text
         elif element.name == "hr":
             return "\n----------\n"
         elif element.name == "blockquote":
-            text = '<blockquote>'
+            text = "<blockquote>"
             for child in element.children:
                 text += htmlElementToText(child)
-            text += '</blockquote>'
+            text += "</blockquote>"
             return text
         else:
             text = ""
