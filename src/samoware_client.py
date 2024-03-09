@@ -348,32 +348,29 @@ def setSessionInfo(context: SamowareContext) -> None:
     context.cookies = response.cookies
 
 
-def my_get_text(element, offset=0):
+def htmlElementToText(element):
     if isinstance(element, bs4.NavigableString):
-        text = ""
-        for line in html.escape(str(element)).splitlines(keepends=True):
-            text += "  " * offset + line
-        return text
+        return html.escape(str(element))
     elif isinstance(element, bs4.Tag):
         if element.name == "a" and "href" in element.attrs:
             href = element["href"]
-            element_text = ""
-            text = ""
+            text = f'<a href="{href}">'
             for child in element.children:
-                element_text += my_get_text(child, offset)
-            text += f'<a href="{href}">{element_text}</a>'
+                text += htmlElementToText(child)
+            text += '</a>'
             return text
         elif element.name == "hr":
-            return "\n-----\n"
+            return "\n----------\n"
         elif element.name == "blockquote":
-            text = ""
+            text = '<blockquote>'
             for child in element.children:
-                text += my_get_text(child, offset + 1)
+                text += htmlElementToText(child)
+            text += '</blockquote>'
             return text
         else:
             text = ""
             for child in element.children:
-                text += my_get_text(child, offset)
+                text += htmlElementToText(child)
             return text
 
 
@@ -407,7 +404,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
                 logging.debug("found textEnd")
                 break
             if foundTextBeg:
-                text += my_get_text(element)
+                text += htmlElementToText(element)
 
     attachment_files = []
     attachment_names = []
