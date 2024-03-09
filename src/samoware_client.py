@@ -128,7 +128,7 @@ async def longPollingTask(
                         update["to_name"],
                         update["from_mail"],
                         update["from_name"],
-                        html.escape(update["subject"]),
+                        update["subject"],
                         mail.text,
                         mail.attachment_files,
                         mail.attachment_names,
