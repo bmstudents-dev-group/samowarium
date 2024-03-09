@@ -2,11 +2,13 @@ import aiohttp
 import requests
 import asyncio
 import xml.etree.ElementTree as ET
+import bs4
 from bs4 import BeautifulSoup
 import logging
 from datetime import datetime, timedelta
 import re
 import urllib.error
+import html
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
@@ -126,7 +128,7 @@ async def longPollingTask(
                         update["to_name"],
                         update["from_mail"],
                         update["from_name"],
-                        update["subject"],
+                        html.escape(update["subject"]),
                         mail.text,
                         mail.attachment_files,
                         mail.attachment_names,
@@ -240,7 +242,7 @@ def getMails(context: SamowareContext, first: int, last: int) -> list:
             mail["from_name"] = element.find("E-From").attrib["realName"]
         else:
             mail["from_name"] = element.find("E-From").text
-        mail["subject"] = element.find("Subject").text
+        mail["subject"] = html.escape(element.find("Subject").text)
         mails.append(mail)
     return mails
 
@@ -308,7 +310,7 @@ def getInboxUpdates(context: SamowareContext) -> list:
                 mail["from_name"] = element.find("E-From").attrib["realName"]
             else:
                 mail["from_name"] = element.find("E-From").text
-            mail["subject"] = element.find("Subject").text
+            mail["subject"] = html.escape(element.find("Subject").text)
             mail["to_mail"] = []
             mail["to_name"] = []
             for el in element.findall("E-To"):
@@ -346,30 +348,32 @@ def setSessionInfo(context: SamowareContext) -> None:
     context.cookies = response.cookies
 
 
-def my_get_text(element):
-    text = ""
-    for child in element.descendants:
-        if isinstance(child, bs4.NavigableString):
-            if child.parent.name != "a":
-                text += str(child)
-        elif isinstance(child, bs4.Tag):
-            if child.name == "a" and "href" in child.attrs:
-                href = child["href"]
-                element_text = child.text
-                text += f'<a href="{href}">{element_text}</a>'
-            elif child.name == "hr":
-                text += "\n-----\n"
-
+def my_get_text(element, offset=0):
     if isinstance(element, bs4.NavigableString):
-        return str(element)
+        text = ""
+        for line in html.escape(str(element)).splitlines(keepends=True):
+            text += "  " * offset + line
+        return text
     elif isinstance(element, bs4.Tag):
         if element.name == "a" and "href" in element.attrs:
             href = element["href"]
-            element_text = text
-            return f'<a href="{href}">{element_text}</a>'
+            element_text = ""
+            text = ""
+            for child in element.children:
+                element_text += my_get_text(child, offset)
+            text += f'<a href="{href}">{element_text}</a>'
+            return text
         elif element.name == "hr":
             return "\n-----\n"
+        elif element.name == "blockquote":
+            text = ""
+            for child in element.children:
+                text += my_get_text(child, offset + 1)
+            return text
         else:
+            text = ""
+            for child in element.children:
+                text += my_get_text(child, offset)
             return text
 
 
@@ -393,9 +397,9 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
 
     text = ""
     for mailBodyHtml in mailBodiesHtml:
-        logging.debug("mail body: " + str(mailBodyHtml.encode(recursive=False)))
+        logging.debug("mail body: " + str(mailBodyHtml.encode()))
         foundTextBeg = False
-        for element in mailBodyHtml.findChildren():
+        for element in mailBodyHtml.findChildren(recursive=False):
             if element.has_attr("class") and "textBeg" in element["class"]:
                 foundTextBeg = True
                 logging.debug("found textBeg")
