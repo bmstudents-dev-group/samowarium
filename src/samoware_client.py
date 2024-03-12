@@ -2,11 +2,13 @@ import aiohttp
 import requests
 import asyncio
 import xml.etree.ElementTree as ET
+import bs4
 from bs4 import BeautifulSoup
 import logging
 from datetime import datetime, timedelta
 import re
 import urllib.error
+import html
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
@@ -240,7 +242,7 @@ def getMails(context: SamowareContext, first: int, last: int) -> list:
             mail["from_name"] = element.find("E-From").attrib["realName"]
         else:
             mail["from_name"] = element.find("E-From").text
-        mail["subject"] = element.find("Subject").text
+        mail["subject"] = html.escape(element.find("Subject").text)
         mails.append(mail)
     return mails
 
@@ -308,7 +310,7 @@ def getInboxUpdates(context: SamowareContext) -> list:
                 mail["from_name"] = element.find("E-From").attrib["realName"]
             else:
                 mail["from_name"] = element.find("E-From").text
-            mail["subject"] = element.find("Subject").text
+            mail["subject"] = html.escape(element.find("Subject").text)
             mail["to_mail"] = []
             mail["to_name"] = []
             for el in element.findall("E-To"):
@@ -346,6 +348,32 @@ def setSessionInfo(context: SamowareContext) -> None:
     context.cookies = response.cookies
 
 
+def htmlElementToText(element):
+    if isinstance(element, bs4.NavigableString):
+        return html.escape(str(element))
+    elif isinstance(element, bs4.Tag):
+        if element.name == "a" and "href" in element.attrs:
+            href = element["href"]
+            text = f'<a href="{href}">'
+            for child in element.children:
+                text += htmlElementToText(child)
+            text += "</a>"
+            return text
+        elif element.name == "hr":
+            return "\n----------\n"
+        elif element.name == "blockquote":
+            text = "<blockquote>"
+            for child in element.children:
+                text += htmlElementToText(child)
+            text += "</blockquote>"
+            return text
+        else:
+            text = ""
+            for child in element.children:
+                text += htmlElementToText(child)
+            return text
+
+
 def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
     response = requests.get(
         f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
@@ -368,7 +396,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
     for mailBodyHtml in mailBodiesHtml:
         logging.debug("mail body: " + str(mailBodyHtml.encode()))
         foundTextBeg = False
-        for element in mailBodyHtml.findChildren():
+        for element in mailBodyHtml.findChildren(recursive=False):
             if element.has_attr("class") and "textBeg" in element["class"]:
                 foundTextBeg = True
                 logging.debug("found textBeg")
@@ -376,7 +404,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
                 logging.debug("found textEnd")
                 break
             if foundTextBeg:
-                text += element.text
+                text += htmlElementToText(element)
 
     attachment_files = []
     attachment_names = []

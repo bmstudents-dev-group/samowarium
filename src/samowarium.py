@@ -4,7 +4,6 @@ from samoware_client import SamowareContext
 import database
 import asyncio
 import logging
-import html
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -55,10 +54,9 @@ async def onMail(telegram_id: int, mail: samoware_client.Mail) -> None:
         )
         if i != len(mail.to_name) - 1:
             to_str += ", "
-    plaintext = html.escape(mail.text)
     await telegram_bot.send_message(
         telegram_id,
-        f'{mail.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n<b>{html.escape(mail.subject)}</b>\n\n{plaintext}',
+        f'{mail.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n<b>{mail.subject}</b>\n\n{mail.text}',
         "html",
     )
     if len(mail.attachment_files) > 0:
