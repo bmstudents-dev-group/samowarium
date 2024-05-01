@@ -23,7 +23,7 @@ python3 ./src/samowarium.py
 - Собрать образ и запустить контейнер:
 
 ```bash
-docker compose -f docker/docker-compose.yml run --rm samowarium-container python src/samowarium.py
+docker compose -f docker/docker-compose.yml run -d --rm samowarium-container
 ```
 
 - В дальнейшем выполнять ребилд образа:
