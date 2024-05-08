@@ -1,4 +1,4 @@
-version: "3.9"
+version: "3.3"
 
 services:
   samowarium-container:
@@ -10,4 +10,6 @@ services:
       - ..:/samowarium:rw
     working_dir: /samowarium
     entrypoint:
-      - docker/tools/run_as_user.sh
+      - python3
+    command:
+      - src/samowarium.py
