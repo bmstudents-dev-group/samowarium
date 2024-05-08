@@ -310,7 +310,10 @@ def getInboxUpdates(context: SamowareContext) -> list:
                 mail["from_name"] = element.find("E-From").attrib["realName"]
             else:
                 mail["from_name"] = element.find("E-From").text
-            mail["subject"] = html.escape(element.find("Subject").text)
+            if element.find("Subject"):
+                mail["subject"] = html.escape(element.find("Subject").text)
+            else:
+                mail["subject"] = "Письмо без темы"
             mail["to_mail"] = []
             mail["to_name"] = []
             for el in element.findall("E-To"):
