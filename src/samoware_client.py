@@ -248,7 +248,7 @@ def getMails(context: SamowareContext, first: int, last: int) -> list:
 
 
 async def longPollUpdatesAsync(context: SamowareContext) -> str:
-    http_session = aiohttp.ClientSession()
+    http_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60))
     response = await http_session.get(
         f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ackSeq}&maxWait=20&random={nextRand(context)}",
         cookies=context.cookies,
