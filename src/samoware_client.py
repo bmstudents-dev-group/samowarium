@@ -248,7 +248,7 @@ def getMails(context: SamowareContext, first: int, last: int) -> list:
 
 
 async def longPollUpdatesAsync(context: SamowareContext) -> str:
-    http_session = aiohttp.ClientSession()
+    http_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60))
     response = await http_session.get(
         f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ackSeq}&maxWait=20&random={nextRand(context)}",
         cookies=context.cookies,
@@ -310,7 +310,10 @@ def getInboxUpdates(context: SamowareContext) -> list:
                 mail["from_name"] = element.find("E-From").attrib["realName"]
             else:
                 mail["from_name"] = element.find("E-From").text
-            mail["subject"] = html.escape(element.find("Subject").text)
+            if element.find("Subject"):
+                mail["subject"] = html.escape(element.find("Subject").text)
+            else:
+                mail["subject"] = "Письмо без темы"
             mail["to_mail"] = []
             mail["to_name"] = []
             for el in element.findall("E-To"):
