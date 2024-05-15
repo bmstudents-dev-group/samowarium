@@ -353,7 +353,7 @@ def setSessionInfo(context: SamowareContext) -> None:
 
 def htmlElementToText(element):
     if isinstance(element, bs4.NavigableString):
-        return html.escape(str(element).replace("\n", " "))
+        return html.escape(str(element).replace("\n", " ").strip())
     elif isinstance(element, bs4.Tag):
         if element.name == "a" and "href" in element.attrs:
             href = element["href"]
