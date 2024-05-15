@@ -433,8 +433,8 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
             if foundTextBeg:
                 text += htmlElementToText(element)
 
-    text = re.sub(r"(\r)+", "\n", text).strip()
-    text = re.sub(r"(\n)+", "\r", text).strip()
+    text = re.sub(r"(\r)+", "\r", text).strip()
+    text = re.sub(r"(\n)+", "\n", text).strip()
     text = text.replace("\r", "\n\n")
 
     attachment_files = []
