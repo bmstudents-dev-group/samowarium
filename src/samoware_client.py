@@ -378,7 +378,12 @@ def htmlElementToText(element):
             text = ""
             for child in element.children:
                 text += htmlElementToText(child)
-            return "\n\n" + text + "\n\n"
+            return "\r" + text + "\r"
+        elif element.name == "div":
+            text = ""
+            for child in element.children:
+                text += htmlElementToText(child)
+            return "\n" + text + "\n"
         elif element.name == "li":
             text = ""
             for child in element.children:
@@ -428,7 +433,9 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
             if foundTextBeg:
                 text += htmlElementToText(element)
 
-    text = re.sub(r"(\n){2,}", "\n\n", text).strip()
+    text = re.sub(r"(\r)+", "\n", text).strip()
+    text = re.sub(r"(\n)+", "\r", text).strip()
+    text = text.replace("\r", "\n\n")
 
     attachment_files = []
     attachment_names = []
