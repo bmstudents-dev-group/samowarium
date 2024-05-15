@@ -368,7 +368,7 @@ def htmlElementToText(element):
             return "\n"
         elif element.name == "hr":
             return "\n----------\n"
-        elif element.name == "p" or element.name == "div":
+        elif element.name == "p":
             text = ""
             for child in element.children:
                 text += htmlElementToText(child)
