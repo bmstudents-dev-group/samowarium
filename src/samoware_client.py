@@ -368,6 +368,12 @@ def htmlElementToText(element):
             return "\n"
         elif element.name == "hr":
             return "\n----------\n"
+        elif element.name == "p":
+            text = ""
+            for child in element.children:
+                text += htmlElementToText(child)
+            text += "\n\n"
+            return text
         elif element.name == "blockquote":
             text = "<blockquote>"
             for child in element.children:
