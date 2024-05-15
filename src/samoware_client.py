@@ -364,6 +364,8 @@ def htmlElementToText(element):
             return text
         elif element.name == "style":
             return ""
+        elif element.name == "br":
+            return "\n"
         elif element.name == "hr":
             return "\n----------\n"
         elif element.name == "blockquote":
