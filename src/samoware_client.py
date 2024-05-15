@@ -369,7 +369,7 @@ def htmlElementToText(element):
         elif element.name == "hr":
             return "\n----------\n"
         elif element.name == "p":
-            text = ""
+            text = "\n\n"
             for child in element.children:
                 text += htmlElementToText(child)
             text += "\n\n"
