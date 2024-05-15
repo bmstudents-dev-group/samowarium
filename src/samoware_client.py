@@ -373,6 +373,11 @@ def htmlElementToText(element):
             for child in element.children:
                 text += htmlElementToText(child)
             return "\n\n" + text + "\n\n"
+        elif element.name == "li":
+            text = ""
+            for child in element.children:
+                text += htmlElementToText(child)
+            return text + "\n"
         elif element.name == "blockquote":
             text = ""
             for child in element.children:
