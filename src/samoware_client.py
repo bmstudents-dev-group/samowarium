@@ -417,7 +417,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
                 logging.debug("found textEnd")
                 break
             if foundTextBeg:
-                text += htmlElementToText(element)
+                text += re.sub('(\n\n)+', '\n\n', htmlElementToText(element))
 
     attachment_files = []
     attachment_names = []
