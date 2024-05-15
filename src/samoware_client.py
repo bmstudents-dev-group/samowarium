@@ -379,7 +379,7 @@ def htmlElementToText(element):
             for child in element.children:
                 text += htmlElementToText(child)
             text += "</blockquote>"
-            return text
+            return text.strip()
         else:
             text = ""
             for child in element.children:
