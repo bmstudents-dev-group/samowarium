@@ -353,7 +353,13 @@ def setSessionInfo(context: SamowareContext) -> None:
 
 def htmlElementToText(element):
     if isinstance(element, bs4.NavigableString):
-        return html.escape(str(element))
+        return html.escape(
+            re.sub(
+                r" +",
+                " ",
+                str(element).replace("\r", "").strip("\n").replace("\n", " "),
+            )
+        )
     elif isinstance(element, bs4.Tag):
         if element.name == "a" and "href" in element.attrs:
             href = element["href"]
@@ -362,14 +368,32 @@ def htmlElementToText(element):
                 text += htmlElementToText(child)
             text += "</a>"
             return text
+        elif element.name == "style":
+            return ""
+        elif element.name == "br":
+            return "\n"
         elif element.name == "hr":
             return "\n----------\n"
-        elif element.name == "blockquote":
-            text = "<blockquote>"
+        elif element.name == "p":
+            text = ""
             for child in element.children:
                 text += htmlElementToText(child)
-            text += "</blockquote>"
-            return text
+            return "\r" + text + "\r"
+        elif element.name == "div":
+            text = ""
+            for child in element.children:
+                text += htmlElementToText(child)
+            return "\n" + text + "\n"
+        elif element.name == "li":
+            text = ""
+            for child in element.children:
+                text += htmlElementToText(child)
+            return text + "\n"
+        elif element.name == "blockquote":
+            text = ""
+            for child in element.children:
+                text += htmlElementToText(child)
+            return "<blockquote>" + text.strip() + "</blockquote>"
         else:
             text = ""
             for child in element.children:
@@ -408,6 +432,11 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
                 break
             if foundTextBeg:
                 text += htmlElementToText(element)
+
+    text = re.sub(r"(\r)+", "\r", text).strip()
+    text = re.sub(r"(\n)+", "\n", text).strip()
+    text = text.replace("\r", "\n\n")
+    text = re.sub(r"(\n){2,}", "\n\n", text).strip()
 
     attachment_files = []
     attachment_names = []
