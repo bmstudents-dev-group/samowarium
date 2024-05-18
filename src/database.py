@@ -6,6 +6,10 @@ from samoware_client import SamowareContext
 db = sqlite3.connect("database.db", check_same_thread=False)
 
 
+def init():
+    db.execute("CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)")
+
+
 def addClient(telegram_id: int, context: SamowareContext) -> None:
     context_encoded = pickle.dumps(context)
     db.execute(
