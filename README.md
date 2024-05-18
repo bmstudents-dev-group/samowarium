@@ -20,10 +20,10 @@ python3 ./src/samowarium.py
 
 ## Для сборки Docker-контейнера
 
-- Собрать образ и запустить контейнер:
+- Собрать образ:
 
 ```bash
-docker compose -f docker/docker-compose.yml run -d samowarium-dev
+docker compose 
 ```
 
 - В дальнейшем выполнять ребилд образа:
