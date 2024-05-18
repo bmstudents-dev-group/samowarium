@@ -3,7 +3,8 @@ import pickle
 
 from samoware_client import SamowareContext
 
-db = sqlite3.connect("database.db", check_same_thread=False)
+DB_PATH = "db/database.db"
+db = sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
 def init():

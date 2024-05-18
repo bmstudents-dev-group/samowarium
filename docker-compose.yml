@@ -1,0 +1,17 @@
+services:
+  samowarium-prod:
+    build: .
+    image: samowarium
+    volumes:
+      - prod-db:/samowarium/db:rw
+    env_file:
+      - ./.env
+    working_dir: /samowarium
+    entrypoint:
+      - python3
+    command:
+      - src/samowarium.py
+
+volumes:
+  prod-db:
+    name: "samowarium-prod-db"
