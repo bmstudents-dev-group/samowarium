@@ -96,6 +96,7 @@ async def deactivate(telegram_id: int) -> None:
 
 async def main() -> None:
     logging.info("loading clients...")
+    database.init()
     for client in database.getAllClients():
         samoware_context = database.getSamowareContext(client[0])
         startSamowareLongPolling(client[0], samoware_context)
