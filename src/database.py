@@ -8,7 +8,9 @@ db = sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
 def init():
-    db.execute("CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)")
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
+    )
 
 
 def addClient(telegram_id: int, context: SamowareContext) -> None:
