@@ -1,5 +1,1 @@
-requests==2.31.0
-beautifulsoup4==4.12.3
-aiohttp==3.9.4
-python-telegram-bot==20.8
-python-dotenv==1.0.1
+/home/vzalygin/repos/samowarium/docker/requirements.txt
