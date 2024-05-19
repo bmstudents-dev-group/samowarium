@@ -23,7 +23,7 @@ services:
     entrypoint:
       - python3
     command:
-      - src/samowarium.py
+      - samowarium.py
 
 volumes:
   prod-db:
