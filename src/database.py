@@ -7,7 +7,7 @@ DB_PATH = "db/database.db"
 db = sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
-def init():
+def initDB():
     db.execute(
         "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
     )
