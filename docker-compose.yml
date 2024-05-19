@@ -5,7 +5,6 @@ services:
     working_dir: /samowarium
     volumes:
       - prod-db:/samowarium/database.db:rw
-      - ..:/samowarium:rw
     env_file:
       - ./.env
     entrypoint:
