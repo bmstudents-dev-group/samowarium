@@ -1,12 +1,13 @@
 services:
   samowarium-prod:
     build: .
-    image: samowarium
+    image: samowarium:latest
+    working_dir: /samowarium
     volumes:
-      - prod-db:/samowarium/db:rw
+      - prod-db:/samowarium/database.db:rw
+      - ..:/samowarium:rw
     env_file:
       - ./.env
-    working_dir: /samowarium
     entrypoint:
       - python3
     command:
@@ -14,12 +15,12 @@ services:
 
   samowarium-dev:
     build: .
-    image: samowarium
+    image: samowarium:latest
+    working_dir: /samowarium
     volumes:
-      - dev-db:/samowarium/db:rw
+      - dev-db:/samowarium/database.db:rw
     env_file:
       - ./.env
-    working_dir: /samowarium
     entrypoint:
       - python3
     command:
