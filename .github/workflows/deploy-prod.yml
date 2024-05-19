@@ -32,6 +32,7 @@ jobs:
         tags: vzalygin/samowarium:prod
 
   deploy:
+    needs: build-and-push-image
     runs-on: ubuntu-latest
     steps:
     - name: prepare configuration
