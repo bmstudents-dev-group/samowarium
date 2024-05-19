@@ -1,10 +1,11 @@
 services:
   samowarium-prod:
     build: .
-    image: samowarium:latest
+    image: vzalygin/samowarium:prod
     working_dir: /samowarium
     volumes:
       - prod-db:/samowarium/database.db:rw
+      - ..:/samowarium:rw
     env_file:
       - ./.env
     entrypoint:
@@ -14,10 +15,11 @@ services:
 
   samowarium-dev:
     build: .
-    image: samowarium:latest
+    image: vzalygin/samowarium:dev
     working_dir: /samowarium
     volumes:
       - dev-db:/samowarium/database.db:rw
+      - ..:/samowarium:rw
     env_file:
       - ./.env
     entrypoint:
