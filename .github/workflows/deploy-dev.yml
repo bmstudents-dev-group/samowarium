@@ -53,9 +53,9 @@ jobs:
 
     - name: Pull image
       run: |
-          docker compose pull samowarium-dev
+          docker compose -f docker-compose.yml pull samowarium-dev
 
     - name: Reload container
       run: |
-          docker compose down samowarium-dev && 
-          docker compose up -d samowarium-dev
+          docker compose down -f docker-compose.yml samowarium-dev && 
+          docker compose up -d -f docker-compose.yml samowarium-dev
