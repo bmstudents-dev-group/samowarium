@@ -6,28 +6,30 @@ on:
       commit:
         description: 'Commit to checkout'
         required: true
-        default: 'main'
+        default: ''
 
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
     steps:
-    - name: checkout
+    - name: Checkout
       uses: actions/checkout@v4
    
-    - name: checkout specific commit commit
+    - name: Checkout specific commit
+      if: ${{ inputs.commit != '' }}
       run:	git checkout ${{ inputs.commit }}
 
-    - name: login to Docker Hub
+    - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - uses: satackey/action-docker-layer-caching@v0.0.11
+    - name: Cache image
+      uses: satackey/action-docker-layer-caching@v0.0.11
       continue-on-error: true
 
-    - name: build and push
+    - name: Build and push
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -43,49 +45,18 @@ jobs:
         echo "ENV=DEV" > .env
         echo "TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }}" > .env
 
-    - name: copy env to server
-      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-      with:
-        server: ${{ secrets.DEV_HOST }}
-        username: ${{ secrets.DEV_SSH_USER }}
-        ssh_private_key: ${{ secrets.DEV_SSH_KEY }} 
-        local_path: './.env'
-        remote_path: '~/.env'
-
-    - name: copy configuration to server
-      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-      with:
-        server: ${{ secrets.DEV_HOST }}
-        username: ${{ secrets.DEV_SSH_USER }}
-        ssh_private_key: ${{ secrets.DEV_SSH_KEY }} 
-        local_path: './docker-compose.yml'
-        remote_path: '~/docker-compose.yml'
-    
-    - name: pull image
-      uses: appleboy/ssh-action@v1.0.3
+    - name: Configure Docker Host
+      uses: khaledez/configure-docker-host@v2
       with:
         host: ${{ secrets.DEV_HOST }}
         username: ${{ secrets.DEV_SSH_USER }}
-        key: ${{ secrets.DEV_SSH_KEY }}
-        script: |
+        ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
+
+    - name: Pull image
+      run: |
           docker compose pull samowarium-dev
 
-    - name: reload container
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.DEV_HOST }}
-        username: ${{ secrets.DEV_SSH_USER }}
-        key: ${{ secrets.DEV_SSH_KEY }}
-        script: |
+    - name: Reload container
+      run: |
           docker compose down samowarium-dev && 
           docker compose up -d samowarium-dev
-
-    - name: clean up
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.DEV_HOST }}
-        username: ${{ secrets.DEV_SSH_USER }}
-        key: ${{ secrets.DEV_SSH_KEY }}
-        script: |
-          rm .env; 
-          rm docker-compose.yml
