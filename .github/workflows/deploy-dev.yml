@@ -39,7 +39,14 @@ jobs:
     needs: build-and-push-image
     runs-on: ubuntu-latest
     steps:
-    - name: prepare configuration
+    - name: Checkout
+      uses: actions/checkout@v4
+   
+    - name: Checkout specific commit
+      if: ${{ inputs.commit != '' }}
+      run:	git checkout ${{ inputs.commit }}
+    
+    - name: Prepare configuration
       run: |
         ENV=DEV
         TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }}
@@ -57,9 +64,9 @@ jobs:
 
     - name: Pull image
       run: |
-          docker compose -f ../docker-compose.yml pull samowarium-dev
+          docker compose pull samowarium-dev
 
     - name: Reload container
       run: |
-          docker compose down -f ../docker-compose.yml samowarium-dev && 
-          docker compose up -d -f ../docker-compose.yml samowarium-dev
+          docker compose down samowarium-dev && 
+          docker compose up -d samowarium-dev
