@@ -41,8 +41,8 @@ jobs:
     steps:
     - name: prepare configuration
       run: |
-        echo "ENV=DEV" > .env
-        echo "TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }}" > .env
+        ENV=DEV
+        TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }}
 
     - name: Configure Docker Host
       uses: khaledez/configure-docker-host@v2
