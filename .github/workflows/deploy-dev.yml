@@ -5,8 +5,7 @@ on:
     inputs:
       commit:
         description: 'Commit to checkout'
-        required: true
-        default: ''
+        required: false
 
 jobs:
   build-and-push-image:
