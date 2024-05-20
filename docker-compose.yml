@@ -4,7 +4,7 @@ services:
     image: vzalygin/samowarium:prod
     working_dir: /samowarium
     env_file:
-      - ./.env
+      - .env
     volumes:
       - prod-db:/samowarium/db:rw
     entrypoint:
@@ -17,7 +17,7 @@ services:
     image: vzalygin/samowarium:dev
     working_dir: /samowarium
     env_file:
-      - ./.env
+      - .env
     volumes:
       - dev-db:/samowarium/db:rw
     entrypoint:
