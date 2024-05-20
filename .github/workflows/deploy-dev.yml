@@ -51,6 +51,10 @@ jobs:
         user: ${{ secrets.DEV_SSH_USER }}
         ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
 
+    - name: abc
+      run: |
+        tree /home/runner/work
+
     - name: Pull image
       run: |
           docker compose -f ../docker-compose.yml pull samowarium-dev
