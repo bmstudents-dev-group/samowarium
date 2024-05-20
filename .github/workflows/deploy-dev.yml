@@ -48,7 +48,7 @@ jobs:
       uses: khaledez/configure-docker-host@v2
       with:
         host: ${{ secrets.DEV_HOST }}
-        username: ${{ secrets.DEV_SSH_USER }}
+        user: ${{ secrets.DEV_SSH_USER }}
         ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
 
     - name: Pull image
