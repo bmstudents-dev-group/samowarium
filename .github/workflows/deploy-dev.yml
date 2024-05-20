@@ -67,5 +67,5 @@ jobs:
     - name: Reload container
       run: |
           docker compose down samowarium-dev && 
-          docker compose up samowarium-dev ||
+          docker compose up -d samowarium-dev ||
           exit 1
