@@ -48,9 +48,9 @@ jobs:
     
     - name: Prepare configuration
       run: |
-        echo ENV=DEV > .env;
-        echo TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }} > .env;
-        echo VERSION=$(git rev-parse --short HEAD) > .env;
+        echo ENV=DEV >> .env;
+        echo TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }} >> .env;
+        echo VERSION=$(git rev-parse --short HEAD) >> .env;
   
     - name: Configure Docker Host
       uses: khaledez/configure-docker-host@v2
@@ -61,9 +61,11 @@ jobs:
 
     - name: Pull image
       run: |
-          docker compose pull samowarium-dev
+          docker compose pull samowarium-dev || 
+          exit 1
 
     - name: Reload container
       run: |
           docker compose down samowarium-dev && 
-          docker compose up samowarium-dev
+          docker compose up samowarium-dev ||
+          exit 1
