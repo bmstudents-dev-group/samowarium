@@ -51,10 +51,11 @@ async def send_message(
     logging.debug(f'sending message "{message}" to {telegram_id}')
     try:
         await application.bot.send_message(telegram_id, message, parse_mode=format)
-    except Exception as error: 
+    except Exception as error:
         logging.exception("exception in send_message:\n" + str(error))
         logging.info(f"Retrying send_message for {telegram_id} in 10 seconds...")
         await send_message(telegram_id, message, format)
+
 
 async def send_attachments(
     telegram_id: int, attachment_files: list, attachment_names: list[str]
