@@ -5,8 +5,6 @@ services:
     working_dir: /samowarium
     volumes:
       - prod-db:/samowarium/db:rw
-    env_file:
-      - ./.env
     entrypoint:
       - python3
     command:
