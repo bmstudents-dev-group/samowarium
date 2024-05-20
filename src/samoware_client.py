@@ -151,6 +151,7 @@ async def longPollingTask(
                     f"retry_count={retry_count}. Retrying longpolling for {context.login}..."
                 )
                 retry_count += 1
+                await asyncio.sleep(10)
             else:
                 logging.info(
                     f"retry_count={retry_count}. deleting session for {context.login}..."
