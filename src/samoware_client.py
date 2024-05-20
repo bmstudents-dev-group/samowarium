@@ -147,7 +147,7 @@ async def longPollingTask(
         except Exception as error:
             logging.exception("exception in client_handler:\n" + str(error))
             logging.info(
-                f"retry_count={retry_count}. Retrying longpolling for {context.login}..."
+                f"retry_count={retry_count}. Retrying longpolling for {context.login} in 10 seconds..."
             )
             retry_count += 1
             await asyncio.sleep(10)
