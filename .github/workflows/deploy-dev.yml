@@ -1,4 +1,4 @@
-name: Deploy to development stage
+name: Deploy to development stand
 
 on:
   workflow_dispatch:
