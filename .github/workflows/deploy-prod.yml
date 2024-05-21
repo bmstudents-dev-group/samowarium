@@ -79,17 +79,37 @@ jobs:
     needs: [build-and-push-image, deploy-to-dev]
     if: |
       always() &&
-      ( needs.deploy-to-dev.result == 'success' || 
-        needs.deploy-to-dev.result == 'skipped' ) 
+      ( needs.deploy-to-dev.result == 'success' ||
+        needs.deploy-to-dev.result == 'skipped' )
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
+    - name: Checkoutf
       uses: actions/checkout@v4
-   
+
     - name: Checkout specific commit
       if: ${{ inputs.commit != '' }}
       run:	git checkout ${{ inputs.commit }}
 
-    - name:
+    - name: Prepare configuration
       run: |
-        echo 'hello'
+        echo ENV=DEV >> .env;
+        echo TELEGRAM_TOKEN=${{ secrets.PROD_TG_TOKEN }} >> .env;
+        echo VERSION=$(git rev-parse --short HEAD) >> .env;
+
+    - name: Configure Docker Host
+      uses: khaledez/configure-docker-host@v2
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        user: ${{ secrets.PROD_SSH_USER }}
+        ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+    - name: Pull image
+      run: |
+          docker compose pull samowarium-prod || 
+          exit 1
+
+    - name: Reload container
+      run: |
+          docker compose down samowarium-prod && 
+          docker compose up -d samowarium-prod ||
+          exit 1    
