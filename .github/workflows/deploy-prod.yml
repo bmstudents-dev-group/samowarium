@@ -7,7 +7,7 @@ on:
         description: 'Сheckout specific commit'
         required: false
       deploy-dev:
-        description: 'Deploy to dev stand'
+        description: 'Deploy to dev stand firstly'
         type: boolean
         default: true
       production-check:
