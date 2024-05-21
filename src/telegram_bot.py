@@ -7,6 +7,7 @@ from telegram.ext import (
 import os
 import logging
 from typing import Callable, Awaitable
+import asyncio
 
 application: Application | None = None
 activate: Callable[[int, str, str], Awaitable[None]] | None = None
@@ -48,13 +49,17 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def send_message(
     telegram_id: int, message: str, format: str | None = None
 ) -> None:
-    logging.debug(f'sending message "{message}" to {telegram_id}')
-    try:
-        await application.bot.send_message(telegram_id, message, parse_mode=format)
-    except Exception as error:
-        logging.exception("exception in send_message:\n" + str(error))
-        logging.info(f"Retrying send_message for {telegram_id} in 10 seconds...")
-        await send_message(telegram_id, message, format)
+    sent = False
+    logging.debug(f'sending message "{message}" to {telegram_id} ...')
+    while sent == False:
+        try:
+            await application.bot.send_message(telegram_id, message, parse_mode=format)
+            sent = True
+            logging.info(f'sent message to {telegram_id}')
+        except Exception as error:
+            logging.exception("exception in send_message:\n" + str(error))
+            logging.info(f"reqtrying to send message for {telegram_id} in 2 seconds...")
+            asyncio.wait(2)
 
 
 async def send_attachments(
