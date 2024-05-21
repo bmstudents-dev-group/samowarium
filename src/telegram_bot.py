@@ -55,7 +55,7 @@ async def send_message(
         try:
             await application.bot.send_message(telegram_id, message, parse_mode=format)
             sent = True
-            logging.info(f'sent message to {telegram_id}')
+            logging.info(f"sent message to {telegram_id}")
         except Exception as error:
             logging.exception("exception in send_message:\n" + str(error))
             logging.info(f"reqtrying to send message for {telegram_id} in 2 seconds...")
