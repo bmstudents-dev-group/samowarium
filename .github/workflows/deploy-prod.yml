@@ -76,7 +76,7 @@ jobs:
           exit 1
 
   deploy-to-prod:
-    needs: build-and-push-image
+    needs: deploy-to-dev
     if: ${{ !inputs.deploy-dev }}
     runs-on: ubuntu-latest
     steps:
