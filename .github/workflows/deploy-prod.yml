@@ -1,91 +1,133 @@
-name: Deploy to production
+name: Deploy to production stand
 
 on:
   workflow_dispatch:
     inputs:
       commit:
-        description: 'Commit to checkout'
+        description: 'Сheckout specific commit'
+        required: false
+      deploy-dev:
+        description: 'Deploy to dev stand firstly'
+        type: boolean
+        default: true
+      production-check:
+        description: 'DEPLOY TO PRODUCTION'
+        type: boolean
+        default: false
         required: true
-        default: 'main'
 
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
+    if: ${{ inputs.production-check }}
     steps:
-    - name: checkout
+    - name: Checkout
       uses: actions/checkout@v4
    
-    - name: checkout specific commit commit
+    - name: Checkout specific commit
+      if: ${{ inputs.commit != '' }}
       run:	git checkout ${{ inputs.commit }}
 
-    - name: login to Docker Hub
+    - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - uses: satackey/action-docker-layer-caching@v0.0.11
+    - name: Cache image
+      uses: satackey/action-docker-layer-caching@v0.0.11
       continue-on-error: true
 
-    - name: build and push
+    - name: Build and push prod and dev image
+      if: ${{ inputs.deploy-dev }}
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          vzalygin/samowarium:prod
+          vzalygin/samowarium:dev
+
+    - name: Build and push prod only image
+      if: ${{ !inputs.deploy-dev }}
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
         tags: vzalygin/samowarium:prod
-
-  deploy:
+    
+  deploy-to-dev:
     needs: build-and-push-image
     runs-on: ubuntu-latest
+    if: ${{ inputs.deploy-dev }}
     steps:
-    - name: prepare configuration
-      run: |
-        echo "ENV=PROD" > .env
-        echo "TELEGRAM_TOKEN=${{ secrets.PROD_TG_TOKEN }}" > .env
-
-    - name: copy env to server
-      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-      with:
-        server: ${{ secrets.PROD_HOST }}
-        username: ${{ secrets.PROD_SSH_USER }}
-        ssh_private_key: ${{ secrets.PROD_SSH_KEY }} 
-        local_path: './.env'
-        remote_path: '~/.env'
-
-    - name: copy configuration to server
-      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-      with:
-        server: ${{ secrets.PROD_HOST }}
-        username: ${{ secrets.PROD_SSH_USER }}
-        ssh_private_key: ${{ secrets.PROD_SSH_KEY }} 
-        local_path: './docker-compose.yml'
-        remote_path: '~/docker-compose.yml'
+    - name: Checkout
+      uses: actions/checkout@v4
+   
+    - name: Checkout specific commit
+      if: ${{ inputs.commit != '' }}
+      run:	git checkout ${{ inputs.commit }}
     
-    - name: pull image
-      uses: appleboy/ssh-action@v1.0.3
+    - name: Prepare configuration
+      run: |
+        echo ENV=DEV >> .env;
+        echo TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }} >> .env;
+        echo VERSION=$(git rev-parse --short HEAD) >> .env;
+  
+    - name: Configure Docker Host
+      uses: khaledez/configure-docker-host@v2
       with:
-        host: ${{ secrets.PROD_HOST }}
-        username: ${{ secrets.PROD_SSH_USER }}
-        key: ${{ secrets.PROD_SSH_KEY }}
-        script: |
-          docker compose pull samowarium-prod
+        host: ${{ secrets.DEV_HOST }}
+        user: ${{ secrets.DEV_SSH_USER }}
+        ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
 
-    - name: reload container
-      uses: appleboy/ssh-action@v1.0.3
+    - name: Pull image
+      run: |
+          docker compose pull samowarium-dev || 
+          exit 1
+
+    - name: Reload container
+      run: |
+          docker compose down samowarium-dev && 
+          docker compose up -d samowarium-dev ||
+          exit 1
+
+  deploy-to-prod:
+    needs: [build-and-push-image, deploy-to-dev]
+    if: |
+      always() &&
+      needs.build-and-push-image.result == 'success' &&
+      ( needs.deploy-to-dev.result == 'success' ||
+        needs.deploy-to-dev.result == 'skipped' )
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkoutf
+      uses: actions/checkout@v4
+
+    - name: Checkout specific commit
+      if: ${{ inputs.commit != '' }}
+      run:	git checkout ${{ inputs.commit }}
+
+    - name: Prepare configuration
+      run: |
+        echo ENV=PROD >> .env;
+        echo TELEGRAM_TOKEN=${{ secrets.PROD_TG_TOKEN }} >> .env;
+        echo VERSION=$(git rev-parse --short HEAD) >> .env;
+
+    - name: Configure Docker Host
+      uses: khaledez/configure-docker-host@v2
       with:
         host: ${{ secrets.PROD_HOST }}
-        username: ${{ secrets.PROD_SSH_USER }}
-        key: ${{ secrets.PROD_SSH_KEY }}
-        script: |
+        user: ${{ secrets.PROD_SSH_USER }}
+        ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+    - name: Pull image
+      run: |
+          docker compose pull samowarium-prod || 
+          exit 1
+
+    - name: Reload container
+      run: |
           docker compose down samowarium-prod && 
-          docker compose up -d samowarium-prod
-
-    - name: clean up
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.PROD_HOST }}
-        username: ${{ secrets.PROD_SSH_USER }}
-        key: ${{ secrets.PROD_SSH_KEY }}
-        script: |
-          rm .env; 
-          rm docker-compose.yml
+          docker compose up -d samowarium-prod ||
+          exit 1    
