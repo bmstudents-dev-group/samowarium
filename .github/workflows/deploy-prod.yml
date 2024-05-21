@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       commit:
-        description: 'Commit to checkout'
+        description: 'Сheckout specific commit'
         required: false
       deploy-dev:
         description: 'Deploy to dev stand'
