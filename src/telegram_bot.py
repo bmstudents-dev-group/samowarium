@@ -51,7 +51,7 @@ async def send_message(
 ) -> None:
     sent = False
     logging.debug(f'sending message "{message}" to {telegram_id} ...')
-    while sent == False:
+    while not sent:
         try:
             await application.bot.send_message(telegram_id, message, parse_mode=format)
             sent = True
