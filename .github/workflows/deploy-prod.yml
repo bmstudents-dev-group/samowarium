@@ -96,6 +96,7 @@ jobs:
     needs: [build-and-push-image, deploy-to-dev]
     if: |
       always() &&
+      needs.build-and-push-image.result == 'success' &&
       ( needs.deploy-to-dev.result == 'success' ||
         needs.deploy-to-dev.result == 'skipped' )
     runs-on: ubuntu-latest
