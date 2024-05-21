@@ -76,8 +76,11 @@ jobs:
           exit 1
 
   deploy-to-prod:
-    needs: deploy-to-dev
-    if: ${{ !inputs.deploy-dev }}
+    needs: [build-and-push-image, deploy-to-dev]
+    if: |
+      always() &&
+      ( needs.deploy-to-dev.result == 'success' || 
+        needs.deploy-to-dev.result == 'skipped' ) 
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
