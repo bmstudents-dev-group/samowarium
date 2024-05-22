@@ -60,7 +60,7 @@ async def send_message(
             logging.info(f"sent message to {telegram_id}")
         except telegram.error.BadRequest as error:
             logging.exception("exception in send_message:\n" + str(error))
-            logging.info(f"error is bad request. Not retrying")
+            logging.info("error is bad request. Not retrying")
             break
         except Exception as error:
             logging.exception("exception in send_message:\n" + str(error))
