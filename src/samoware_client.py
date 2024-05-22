@@ -101,6 +101,7 @@ async def longPollingTask(
     logging.info(f"longpolling for {context.login} started")
     while await isActive():
         try:
+            backup_ackSeq = context.ackSeq
             longPollUpdate = await longPollUpdatesAsync(context)
             await onContextUpdate(context)
             logging.debug(f"longPollUpdate: {longPollUpdate}")
@@ -150,6 +151,7 @@ async def longPollingTask(
                 f"retry_count={retry_count}. Retrying longpolling for {context.login} in 10 seconds..."
             )
             retry_count += 1
+            context.ackSeq = backup_ackSeq
             await asyncio.sleep(10)
 
     logging.info(f"longpolling for {context.login} stopped")
