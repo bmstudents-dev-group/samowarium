@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import re
 import urllib.error
 import html
+import copy
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
@@ -104,7 +105,7 @@ async def longPollingTask(
     logging.info(f"longpolling for {context.login} started")
     while await isActive():
         try:
-            backup_ackSeq = context.ackSeq
+            backup_context = copy.deepcopy(context)
             longPollUpdate = await longPollUpdatesAsync(context)
             await onContextUpdate(context)
             logging.debug(f"longPollUpdate: {longPollUpdate}")
@@ -154,7 +155,7 @@ async def longPollingTask(
                 f"retry_count={retry_count}. Retrying longpolling for {context.login} in {LONGPOLL_RETRY_DELAY} seconds..."
             )
             retry_count += 1
-            context.ackSeq = backup_ackSeq
+            context = backup_context
             await asyncio.sleep(LONGPOLL_RETRY_DELAY)
 
     logging.info(f"longpolling for {context.login} stopped")
