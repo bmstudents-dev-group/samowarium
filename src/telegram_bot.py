@@ -1,4 +1,5 @@
 from telegram import Update, InputMediaDocument
+import telegram
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -56,6 +57,10 @@ async def send_message(
             await application.bot.send_message(telegram_id, message, parse_mode=format)
             sent = True
             logging.info(f"sent message to {telegram_id}")
+        except telegram.error.BadRequest:
+            logging.exception("exception in send_message:\n" + str(error))
+            logging.info(f"error is bad request. Not retrying")
+            break
         except Exception as error:
             logging.exception("exception in send_message:\n" + str(error))
             logging.info(f"reqtrying to send message for {telegram_id} in 2 seconds...")
