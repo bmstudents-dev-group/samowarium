@@ -47,6 +47,7 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await activate(user, login, password)
 
 
+# TODO: split message if too long
 async def send_message(
     telegram_id: int, message: str, format: str | None = None
 ) -> None:
