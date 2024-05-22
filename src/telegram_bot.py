@@ -81,7 +81,7 @@ async def send_attachments(
             InputMediaDocument(attachment_files[i], filename=attachment_names[i])
         )
     sent = False
-    logging.debug(f'sending attachments ({attachment_names}) to {telegram_id} ...')
+    logging.debug(f"sending attachments ({attachment_names}) to {telegram_id} ...")
     while not sent:
         try:
             await application.bot.send_media_group(telegram_id, media_group)
