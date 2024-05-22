@@ -12,6 +12,9 @@ import html
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
+HTTP_TIMEOUT = 5
+LONGPOLL_TIMEOUT = 60
+LONGPOLL_RETRY_DELAY = 10
 
 
 class UnauthorizedError(Exception):
@@ -148,11 +151,11 @@ async def longPollingTask(
         except Exception as error:
             logging.exception("exception in client_handler:\n" + str(error))
             logging.info(
-                f"retry_count={retry_count}. Retrying longpolling for {context.login} in 10 seconds..."
+                f"retry_count={retry_count}. Retrying longpolling for {context.login} in {LONGPOLL_RETRY_DELAY} seconds..."
             )
             retry_count += 1
             context.ackSeq = backup_ackSeq
-            await asyncio.sleep(10)
+            await asyncio.sleep(LONGPOLL_RETRY_DELAY)
 
     logging.info(f"longpolling for {context.login} stopped")
 
@@ -169,7 +172,7 @@ def login(login: str, password: str) -> SamowareContext | None:
     loginUrl = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     if SESSION_TOKEN_PATTERN.match(password):
         loginUrl = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={password}"
-    response = requests.get(loginUrl)
+    response = requests.get(loginUrl, timeout=HTTP_TIMEOUT)
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
         return None
@@ -184,7 +187,8 @@ def login(login: str, password: str) -> SamowareContext | None:
 
 def revalidate(context: SamowareContext) -> SamowareContext:
     response = requests.get(
-        f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={context.login}&sessionid={context.session}&killOld=1"
+        f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={context.login}&sessionid={context.session}&killOld=1",
+        timeout=HTTP_TIMEOUT,
     )
     logging.debug(response.text)
     tree = ET.fromstring(response.text)
@@ -206,6 +210,7 @@ def openInbox(context: SamowareContext) -> None:
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><listKnownValues id="{nextCommandId(context)}"/><mailboxList filter="%" pureFolder="yes" id="{nextCommandId(context)}"/><mailboxList filter="%/%" pureFolder="yes" id="{nextCommandId(context)}"/><folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{nextCommandId(context)}"><field>FLAGS</field><field>E-From</field><field>Subject</field><field>Pty</field><field>Content-Type</field><field>INTERNALDATE</field><field>SIZE</field><field>E-To</field><field>E-Cc</field><field>E-Reply-To</field><field>X-Color</field><field>Disposition-Notification-To</field><field>X-Request-DSN</field><field>References</field><field>Message-ID</field></folderOpen><setSessionOption name="reportMailboxChanges" value="yes" id="{nextCommandId(context)}"/></XIMSS>',
         cookies=context.cookies,
+        timeout=HTTP_TIMEOUT,
     )
     if response.status_code == 550:
         logging.error(
@@ -224,6 +229,7 @@ def getMails(context: SamowareContext, first: int, last: int) -> list:
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><folderBrowse folder="INBOX-MM-1" id="{nextCommandId(context)}"><index from="{first}" till="{last}"/></folderBrowse></XIMSS>',
         cookies=context.cookies,
+        timeout=HTTP_TIMEOUT,
     )
     tree = ET.fromstring(response.text)
 
@@ -244,7 +250,9 @@ def getMails(context: SamowareContext, first: int, last: int) -> list:
 
 
 async def longPollUpdatesAsync(context: SamowareContext) -> str:
-    http_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60))
+    http_session = aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=LONGPOLL_TIMEOUT)
+    )
     response = await http_session.get(
         f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ackSeq}&maxWait=20&random={nextRand(context)}",
         cookies=context.cookies,
@@ -275,6 +283,7 @@ def getInboxUpdates(context: SamowareContext) -> list:
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{nextCommandId(context)}"/></XIMSS>',
         cookies=context.cookies,
+        timeout=HTTP_TIMEOUT,
     )
     if response.status_code == 550:
         logging.error(
@@ -327,6 +336,7 @@ def setSessionInfo(context: SamowareContext) -> None:
     response = requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={nextRequestId(context)}&random={nextRand(context)}",
         '<XIMSS><prefsRead id="1"><name>Language</name></prefsRead></XIMSS>',
+        timeout=HTTP_TIMEOUT,
     )
     requests.post(
         f"https://student.bmstu.ru/Session/{context.session}/sessionadmin.wcgp",
@@ -343,6 +353,7 @@ def setSessionInfo(context: SamowareContext) -> None:
             ("session", (None, context.session)),
         ),
         cookies=response.cookies,
+        timeout=HTTP_TIMEOUT,
     )
     context.cookies = response.cookies
 
@@ -401,6 +412,7 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
     response = requests.get(
         f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}",
         cookies=context.cookies,
+        timeout=HTTP_TIMEOUT,
     )
     if response.status_code == 550:
         logging.error(
@@ -438,7 +450,9 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
     attachment_names = []
     for attachment_html in tree.find_all("cg-message-attachment"):
         attachment_url = "https://student.bmstu.ru" + attachment_html["attachment-ref"]
-        file = requests.get(attachment_url, cookies=context.cookies, stream=True).raw
+        file = requests.get(
+            attachment_url, cookies=context.cookies, stream=True, timeout=HTTP_TIMEOUT
+        ).raw
         name = attachment_html["attachment-name"]
         attachment_files.append(file)
         attachment_names.append(name)
