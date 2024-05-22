@@ -10,6 +10,8 @@ import logging
 from typing import Callable, Awaitable
 import asyncio
 
+SEND_RETRY_DELAY = 2
+
 application: Application | None = None
 activate: Callable[[int, str, str], Awaitable[None]] | None = None
 deactivate: Callable[[int], Awaitable[None]] | None = None
@@ -64,8 +66,10 @@ async def send_message(
             break
         except Exception as error:
             logging.exception("exception in send_message:\n" + str(error))
-            logging.info(f"retrying to send message for {telegram_id} in 2 seconds...")
-            await asyncio.wait(2)
+            logging.info(
+                f"retrying to send message for {telegram_id} in {SEND_RETRY_DELAY} seconds..."
+            )
+            await asyncio.wait(SEND_RETRY_DELAY)
 
 
 async def send_attachments(
@@ -76,7 +80,23 @@ async def send_attachments(
         media_group.append(
             InputMediaDocument(attachment_files[i], filename=attachment_names[i])
         )
-    await application.bot.send_media_group(telegram_id, media_group)
+    sent = False
+    logging.debug(f'sending attachments ({attachment_names}) to {telegram_id} ...')
+    while not sent:
+        try:
+            await application.bot.send_media_group(telegram_id, media_group)
+            sent = True
+            logging.info(f"sent attachments to {telegram_id}")
+        except telegram.error.BadRequest as error:
+            logging.exception("exception in send_attachments:\n" + str(error))
+            logging.info("error is bad request. Not retrying")
+            break
+        except Exception as error:
+            logging.exception("exception in send_attachments:\n" + str(error))
+            logging.info(
+                f"retrying to send attachments for {telegram_id} in {SEND_RETRY_DELAY} seconds..."
+            )
+            await asyncio.wait(SEND_RETRY_DELAY)
 
 
 async def tg_about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
