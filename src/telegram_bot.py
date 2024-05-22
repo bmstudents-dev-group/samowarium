@@ -58,7 +58,7 @@ async def send_message(
             await application.bot.send_message(telegram_id, message, parse_mode=format)
             sent = True
             logging.info(f"sent message to {telegram_id}")
-        except telegram.error.BadRequest:
+        except telegram.error.BadRequest as error:
             logging.exception("exception in send_message:\n" + str(error))
             logging.info(f"error is bad request. Not retrying")
             break
