@@ -64,7 +64,7 @@ async def send_message(
             break
         except Exception as error:
             logging.exception("exception in send_message:\n" + str(error))
-            logging.info(f"reqtrying to send message for {telegram_id} in 2 seconds...")
+            logging.info(f"retrying to send message for {telegram_id} in 2 seconds...")
             await asyncio.wait(2)
 
 
