@@ -59,7 +59,13 @@ jobs:
         user: ${{ secrets.DEV_SSH_USER }}
         ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
 
+    - name: Pull image
+      run: |
+          DOCKER_TAG=dev docker compose pull samowarium || 
+          exit 1
+
     - name: Reload container
-      run: | 
+      run: |
+          DOCKER_TAG=dev docker compose down samowarium && 
           DOCKER_TAG=dev docker compose -p samowarium-dev up -d --force-recreate samowarium ||
           exit 1
