@@ -10,7 +10,7 @@ import logging
 from typing import Callable, Awaitable
 import asyncio
 
-SEND_RETRY_DELAY = 2
+SEND_RETRY_DELAY_SEC = 2
 
 application: Application | None = None
 activate: Callable[[int, str, str], Awaitable[None]] | None = None
@@ -67,9 +67,9 @@ async def send_message(
         except Exception as error:
             logging.exception("exception in send_message:\n" + str(error))
             logging.info(
-                f"retrying to send message for {telegram_id} in {SEND_RETRY_DELAY} seconds..."
+                f"retrying to send message for {telegram_id} in {SEND_RETRY_DELAY_SEC} seconds..."
             )
-            await asyncio.wait(SEND_RETRY_DELAY)
+            await asyncio.wait(SEND_RETRY_DELAY_SEC)
 
 
 async def send_attachments(
@@ -94,9 +94,9 @@ async def send_attachments(
         except Exception as error:
             logging.exception("exception in send_attachments:\n" + str(error))
             logging.info(
-                f"retrying to send attachments for {telegram_id} in {SEND_RETRY_DELAY} seconds..."
+                f"retrying to send attachments for {telegram_id} in {SEND_RETRY_DELAY_SEC} seconds..."
             )
-            await asyncio.wait(SEND_RETRY_DELAY)
+            await asyncio.wait(SEND_RETRY_DELAY_SEC)
 
 
 async def tg_about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
