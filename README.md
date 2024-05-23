@@ -23,17 +23,17 @@ python3 ./src/samowarium.py
 - Собрать образ:
 
 ```bash
-docker compose 
+DOCKER_TAG=latest docker compose build
 ```
 
-- В дальнейшем выполнять ребилд образа:
+- Запустить образ:
 
 ```bash
-docker compose -f docker/docker-compose.yml build
+DOCKER_TAG=latest docker compose up -d
 ```
 
 - Для остановки:
 
 ```bash
-docker compose -f docker/docker-compose.yml down
+docker compose down
 ```
