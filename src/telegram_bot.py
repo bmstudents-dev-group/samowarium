@@ -9,6 +9,7 @@ import os
 import logging
 from typing import Callable, Awaitable
 import asyncio
+import env
 
 SEND_RETRY_DELAY_SEC = 2
 
@@ -101,7 +102,7 @@ async def send_attachments(
 
 async def tg_about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_html(
-        """
+f"""
 Samowarium - бот, который пересылает входящие письма в личные сообщения телеграм.
 
 Список команд бота:
@@ -112,7 +113,9 @@ Samowarium - бот, который пересылает входящие пис
 Как это работает?
 При передаче пары логин/пароль бот получает от почтового сервера токен сессии, с помощью которого в дальнейшем обрабатывает входящие письма.
 Бот не хранит пароли пользователей, а лишь использует их однократно во время авторизации для получения токена сессии, после чего их забывает. Токен сессии почтового сервера возможно использовать только для работы с почтой, бот не может с помощью него получить доступ к остальным сервисам МГТУ.
-        """
+
+Версия: {env.getProfile()}-{env.getVersion()}        
+"""
     )
 
 
@@ -126,7 +129,7 @@ async def startBot(
     deactivate = onDeactivate
 
     logging.debug("connecting to telegram api...")
-    application = Application.builder().token(os.environ["TELEGRAM_TOKEN"]).build()
+    application = Application.builder().token(env.getTelegramToken()).build()
 
     application.add_handler(CommandHandler("start", tg_start))
     application.add_handler(CommandHandler("stop", tg_stop))
