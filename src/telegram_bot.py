@@ -34,7 +34,7 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     if len(context.args) < 2:
         await update.message.reply_html(
-            "Неверный формат использования команды:\n/login <i>логин</i> <i>пароль</i>"
+            "Нверный формат использования команды:\n/login <i>логин</i> <i>пароль</i>"
         )
         logging.debug(
             f"client entered login and password in wrong format: {context.args}"
