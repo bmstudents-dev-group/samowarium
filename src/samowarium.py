@@ -79,7 +79,7 @@ async def activate(telegram_id: int, samovar_login: str, samovar_password: str) 
     startSamowareLongPolling(telegram_id, context)
     await telegram_bot.send_message(
         telegram_id,
-        "Доступ выдн. Все новые письма будут пересылаться в этот чат.",
+        "Доступ выдан. Все новые письма будут пересылаться в этот чат.",
     )
     logging.info(f"User {telegram_id} activated bot")
 

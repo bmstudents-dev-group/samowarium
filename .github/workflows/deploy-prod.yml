@@ -71,9 +71,15 @@ jobs:
           user: ${{ secrets.DEV_SSH_USER }}
           ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
   
+      - name: Pull image
+        run: |
+            DOCKER_TAG=latest docker compose pull samowarium || 
+            exit 1
+
       - name: Reload container
-        run: | 
-            DOCKER_TAG=latest docker compose -p samowarium-dev up -d --force-recreate samowarium ||
+        run: |
+            DOCKER_TAG=latest docker compose -p samowarium-dev down samowarium && 
+            DOCKER_TAG=latest docker compose -p samowarium-dev up -d samowarium ||
             exit 1
 
   deploy-to-prod:
@@ -104,8 +110,14 @@ jobs:
           host: ${{ secrets.PROD_HOST }}
           user: ${{ secrets.PROD_SSH_USER }}
           ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
-  
+
+      - name: Pull image
+        run: |
+            DOCKER_TAG=latest docker compose pull samowarium || 
+            exit 1
+
       - name: Reload container
         run: |
-            DOCKER_TAG=latest docker compose -p samowarium-prod up -d --force-recreate samowarium ||
+            DOCKER_TAG=latest docker compose -p samowarium-prod down samowarium && 
+            DOCKER_TAG=latest docker compose -p samowarium-prod up -d samowarium ||
             exit 1
