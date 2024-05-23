@@ -38,8 +38,7 @@ jobs:
       uses: satackey/action-docker-layer-caching@v0.0.11
       continue-on-error: true
 
-    - name: Build and push prod and dev image
-      if: ${{ inputs.deploy-dev }}
+    - name: Build and push image
       uses: docker/build-push-action@v5
       with:
         context: .
