@@ -1,9 +1,13 @@
 import sqlite3
 import pickle
+import os
 
 from samoware_client import SamowareContext
 
-DB_PATH = "db/database.db"
+DB_FOLDER_PATH = "db"
+if not os.path.exists(DB_FOLDER_PATH):
+    os.makedirs(DB_FOLDER_PATH)
+DB_PATH = f"{DB_FOLDER_PATH}/database.db"
 db = sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
