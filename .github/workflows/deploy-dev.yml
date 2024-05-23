@@ -66,6 +66,6 @@ jobs:
 
     - name: Reload container
       run: |
-          DOCKER_TAG=dev docker compose down samowarium && 
+          DOCKER_TAG=dev docker compose -p samowarium-dev down samowarium && 
           DOCKER_TAG=dev docker compose -p samowarium-dev up -d samowarium ||
           exit 1
