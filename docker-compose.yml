@@ -1,32 +1,18 @@
 services:
-  samowarium-prod:
+  samowarium:
     build: .
-    image: vzalygin/samowarium:prod
+    image: vzalygin/samowarium:${DOCKER_TAG}
     working_dir: /samowarium
     env_file:
       - .env
     volumes:
-      - prod-db:/samowarium/db:rw
-    entrypoint:
-      - python3
-    command:
-      - samowarium.py
-
-  samowarium-dev:
-    build: .
-    image: vzalygin/samowarium:dev
-    working_dir: /samowarium
-    env_file:
-      - .env
-    volumes:
-      - dev-db:/samowarium/db:rw
+      - db:/samowarium/db:rw
+      - logs:/samowarium/logs:rw
     entrypoint:
       - python3
     command:
       - samowarium.py
 
 volumes:
-  prod-db:
-    name: "samowarium-prod-db"
-  dev-db:
-    name: "samowarium-dev-db"
+  db:
+  logs:

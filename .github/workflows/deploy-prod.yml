@@ -38,59 +38,49 @@ jobs:
       uses: satackey/action-docker-layer-caching@v0.0.11
       continue-on-error: true
 
-    - name: Build and push prod and dev image
-      if: ${{ inputs.deploy-dev }}
+    - name: Build and push image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
         tags: |
-          vzalygin/samowarium:prod
-          vzalygin/samowarium:dev
+          vzalygin/samowarium:latest
 
-    - name: Build and push prod only image
-      if: ${{ !inputs.deploy-dev }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: vzalygin/samowarium:prod
-    
   deploy-to-dev:
     needs: build-and-push-image
     runs-on: ubuntu-latest
     if: ${{ inputs.deploy-dev }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-   
-    - name: Checkout specific commit
-      if: ${{ inputs.commit != '' }}
-      run:	git checkout ${{ inputs.commit }}
-    
-    - name: Prepare configuration
-      run: |
-        echo ENV=DEV >> .env;
-        echo TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }} >> .env;
-        echo VERSION=$(git rev-parse --short HEAD) >> .env;
+      - name: Checkout
+        uses: actions/checkout@v4
   
-    - name: Configure Docker Host
-      uses: khaledez/configure-docker-host@v2
-      with:
-        host: ${{ secrets.DEV_HOST }}
-        user: ${{ secrets.DEV_SSH_USER }}
-        ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
+      - name: Checkout specific commit
+        if: ${{ inputs.commit != '' }}
+        run:	git checkout ${{ inputs.commit }}
+  
+      - name: Prepare configuration
+        run: |
+          echo ENV=DEV >> .env;
+          echo TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }} >> .env;
+          echo VERSION=$(git rev-parse --short HEAD) >> .env;
+  
+      - name: Configure Docker Host
+        uses: khaledez/configure-docker-host@v2
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          user: ${{ secrets.DEV_SSH_USER }}
+          ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
+  
+      - name: Pull image
+        run: |
+            DOCKER_TAG=latest docker compose pull samowarium || 
+            exit 1
 
-    - name: Pull image
-      run: |
-          docker compose pull samowarium-dev || 
-          exit 1
-
-    - name: Reload container
-      run: |
-          docker compose down samowarium-dev && 
-          docker compose up -d samowarium-dev ||
-          exit 1
+      - name: Reload container
+        run: |
+            DOCKER_TAG=latest docker compose -p samowarium-dev down samowarium && 
+            DOCKER_TAG=latest docker compose -p samowarium-dev up -d samowarium ||
+            exit 1
 
   deploy-to-prod:
     needs: [build-and-push-image, deploy-to-dev]
@@ -101,33 +91,33 @@ jobs:
         needs.deploy-to-dev.result == 'skipped' )
     runs-on: ubuntu-latest
     steps:
-    - name: Checkoutf
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Checkout specific commit
-      if: ${{ inputs.commit != '' }}
-      run:	git checkout ${{ inputs.commit }}
+      - name: Checkout specific commit
+        if: ${{ inputs.commit != '' }}
+        run:	git checkout ${{ inputs.commit }}
+  
+      - name: Prepare configuration
+        run: |
+          echo ENV=PROD >> .env;
+          echo TELEGRAM_TOKEN=${{ secrets.PROD_TG_TOKEN }} >> .env;
+          echo VERSION=$(git rev-parse --short HEAD) >> .env;
+  
+      - name: Configure Docker Host
+        uses: khaledez/configure-docker-host@v2
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          user: ${{ secrets.PROD_SSH_USER }}
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
 
-    - name: Prepare configuration
-      run: |
-        echo ENV=PROD >> .env;
-        echo TELEGRAM_TOKEN=${{ secrets.PROD_TG_TOKEN }} >> .env;
-        echo VERSION=$(git rev-parse --short HEAD) >> .env;
+      - name: Pull image
+        run: |
+            DOCKER_TAG=latest docker compose pull samowarium || 
+            exit 1
 
-    - name: Configure Docker Host
-      uses: khaledez/configure-docker-host@v2
-      with:
-        host: ${{ secrets.PROD_HOST }}
-        user: ${{ secrets.PROD_SSH_USER }}
-        ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
-
-    - name: Pull image
-      run: |
-          docker compose pull samowarium-prod || 
-          exit 1
-
-    - name: Reload container
-      run: |
-          docker compose down samowarium-prod && 
-          docker compose up -d samowarium-prod ||
-          exit 1    
+      - name: Reload container
+        run: |
+            DOCKER_TAG=latest docker compose -p samowarium-prod down samowarium && 
+            DOCKER_TAG=latest docker compose -p samowarium-prod up -d samowarium ||
+            exit 1

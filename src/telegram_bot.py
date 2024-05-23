@@ -32,7 +32,7 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await application.bot.delete_message(
         update.effective_chat.id, update.effective_message.id
     )
-    if len(context.args) < 2:
+    if len(context.args) != 2:
         await update.message.reply_html(
             "Неверный формат использования команды:\n/login <i>логин</i> <i>пароль</i>"
         )
@@ -43,7 +43,7 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user.id
     login = context.args[0]
     password = context.args[1]
-    logging.debug(f"client entered login:{login}, password:{password}")
+    logging.debug(f'client entered login "{login}" and password')
     await activate(user, login, password)
 
 

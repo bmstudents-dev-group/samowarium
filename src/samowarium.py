@@ -4,13 +4,16 @@ from samoware_client import SamowareContext
 import database
 import asyncio
 import logging
+import util
 from dotenv import load_dotenv
 
 load_dotenv()
 
+LOGGER_FOLDER_PATH = "logs"
+util.makeDirIfNotExist(LOGGER_FOLDER_PATH)
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    filename="samowarium.log",
+    filename=f"{LOGGER_FOLDER_PATH}/samowarium.log",
     encoding="utf-8",
     level=logging.INFO,
 )
