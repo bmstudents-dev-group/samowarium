@@ -26,14 +26,19 @@ python3 ./src/samowarium.py
 DOCKER_TAG=latest docker compose build
 ```
 
-- Запустить образ:
+- Или получить из регистра:
+
+```bash
+DOCKER_TAG=latest docker compose pull
+```
+
+- Запустить сервис:
 
 ```bash
 DOCKER_TAG=latest docker compose up -d
 ```
 
-- Для остановки:
-
+- Остановить сервис
 ```bash
 docker compose down
 ```
