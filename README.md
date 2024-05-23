@@ -18,7 +18,7 @@ pip install -r requirements.txt
 python3 ./src/samowarium.py
 ```
 
-## Для сборки Docker-контейнера
+## Для работы с Docker
 
 - Собрать образ:
 
@@ -32,13 +32,14 @@ DOCKER_TAG=latest docker compose build
 DOCKER_TAG=latest docker compose pull
 ```
 
-- Запустить сервис:
+- Запустить сервис (не забыть создать `.env` файл с переменными):
 
 ```bash
 DOCKER_TAG=latest docker compose up -d
 ```
 
-- Остановить сервис
+- Остановить сервис:
+
 ```bash
 docker compose down
 ```
