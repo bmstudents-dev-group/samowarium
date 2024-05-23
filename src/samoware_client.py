@@ -253,7 +253,10 @@ def getMails(context: SamowareContext, first: int, last: int) -> list:
 
 async def longPollUpdatesAsync(context: SamowareContext) -> str:
     http_session = aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(connect=HTTP_CONENCT_LONGPOLL_TIMEOUT_SEC, total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC)
+        timeout=aiohttp.ClientTimeout(
+            connect=HTTP_CONENCT_LONGPOLL_TIMEOUT_SEC,
+            total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
+        )
     )
     response = await http_session.get(
         f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ackSeq}&maxWait=20&random={nextRand(context)}",
@@ -453,7 +456,10 @@ def getMailBodyById(context: SamowareContext, uid: int) -> MailBody:
     for attachment_html in tree.find_all("cg-message-attachment"):
         attachment_url = "https://student.bmstu.ru" + attachment_html["attachment-ref"]
         file = requests.get(
-            attachment_url, cookies=context.cookies, stream=True, timeout=HTTP_COMMON_TIMEOUT_SEC
+            attachment_url,
+            cookies=context.cookies,
+            stream=True,
+            timeout=HTTP_COMMON_TIMEOUT_SEC,
         ).raw
         name = attachment_html["attachment-name"]
         attachment_files.append(file)
