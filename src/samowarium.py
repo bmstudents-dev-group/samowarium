@@ -9,7 +9,7 @@ import util
 
 LOGGER_FOLDER_PATH = "logs"
 util.makeDirIfNotExist(LOGGER_FOLDER_PATH)
-if (env.isProdProfile()):
+if env.isProdProfile():
     LOGGER_LEVEL = logging.INFO
 else:
     LOGGER_LEVEL = logging.DEBUG
