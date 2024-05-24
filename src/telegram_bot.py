@@ -5,7 +5,6 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
 )
-import os
 import logging
 from typing import Callable, Awaitable
 import asyncio
@@ -115,7 +114,7 @@ Samowarium - бот, который пересылает входящие пис
 Бот не хранит пароли пользователей, а лишь использует их однократно во время авторизации для получения токена сессии, после чего их забывает. Токен сессии почтового сервера возможно использовать только для работы с почтой, бот не может с помощью него получить доступ к остальным сервисам МГТУ.
 
 Версия: {env.getProfile()}-{env.getVersion()}        
-"""
+        """
     )
 
 
