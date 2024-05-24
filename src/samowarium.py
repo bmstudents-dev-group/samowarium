@@ -4,18 +4,20 @@ from samoware_client import SamowareContext
 import database
 import asyncio
 import logging
+import env
 import util
-from dotenv import load_dotenv
-
-load_dotenv()
 
 LOGGER_FOLDER_PATH = "logs"
 util.makeDirIfNotExist(LOGGER_FOLDER_PATH)
+if env.isProdProfile():
+    LOGGER_LEVEL = logging.INFO
+else:
+    LOGGER_LEVEL = logging.DEBUG
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     filename=f"{LOGGER_FOLDER_PATH}/samowarium.log",
     encoding="utf-8",
-    level=logging.INFO,
+    level=LOGGER_LEVEL,
 )
 
 logging.getLogger("httpx").setLevel(logging.WARN)
