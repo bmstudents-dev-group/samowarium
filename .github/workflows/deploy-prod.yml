@@ -73,7 +73,7 @@ jobs:
           echo VERSION=$(git rev-parse --short HEAD) >> .env;
       
       - name: Enable DEBUG logs
-        if: ${{ dev-debug-logs }}
+        if: ${{ inputs.dev-debug-logs }}
         run: |
           echo DEBUG= >> .env;
   
@@ -118,7 +118,7 @@ jobs:
           echo VERSION=$(git rev-parse --short HEAD) >> .env;
       
       - name: Enable DEBUG logs
-        if: ${{ prod-debug-logs }}
+        if: ${{ inputs.prod-debug-logs }}
         run: |
           echo DEBUG= >> .env;
           
