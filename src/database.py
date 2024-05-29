@@ -1,12 +1,14 @@
 import sqlite3
 import pickle
 import util
+import logging
 
 from samoware_client import SamowareContext
 
 DB_FOLDER_PATH = "db"
-util.makeDirIfNotExist(DB_FOLDER_PATH)
 DB_PATH = f"{DB_FOLDER_PATH}/database.db"
+util.makeDirIfNotExist(DB_FOLDER_PATH)
+# TODO: в рамках рефакторинга избавиться от глобального состояния
 db = sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
@@ -14,6 +16,11 @@ def initDB():
     db.execute(
         "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
     )
+    logging.info("db was initialized")
+
+
+def closeConnection():
+    db.close()
 
 
 def addClient(telegram_id: int, context: SamowareContext) -> None:
@@ -51,7 +58,16 @@ def isClientActive(telegram_id: int) -> bool:
 
 
 def getAllClients() -> list:
-    return db.execute("SELECT telegram_id FROM clients").fetchall()
+    def mapClient(client):
+        (telegram_id, context) = client
+        return (telegram_id, pickle.loads(context))
+
+    return list(
+        map(
+            mapClient,
+            db.execute("SELECT telegram_id, samoware_context FROM clients").fetchall(),
+        )
+    )
 
 
 def removeClient(telegram_id: int) -> None:

@@ -6,6 +6,7 @@ load_dotenv()
 PROFILE_VAR_NAME = "ENV"
 VERSION_VAR_NAME = "VERSION"
 TG_TOKEN_VAR_NAME = "TELEGRAM_TOKEN"
+DEBUG_VAR_NAME = "DEBUG"
 
 DEV_PROFILE_NAME = "DEV"
 PROD_PROFILE_NAME = "PROD"
@@ -31,3 +32,7 @@ def isDevProfile():
 
 def isProdProfile():
     return getProfile() == PROD_PROFILE_NAME
+
+
+def isDebug():
+    return os.environ.get(DEBUG_VAR_NAME) is not None

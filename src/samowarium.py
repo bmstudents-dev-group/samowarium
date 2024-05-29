@@ -1,3 +1,4 @@
+import signal
 import telegram_bot
 import samoware_client
 from samoware_client import SamowareContext
@@ -7,11 +8,11 @@ import logging
 import env
 import util
 
+# TODO: убрать глобальную инициализацию
 LOGGER_FOLDER_PATH = "logs"
 util.makeDirIfNotExist(LOGGER_FOLDER_PATH)
-if env.isProdProfile():
-    LOGGER_LEVEL = logging.INFO
-else:
+LOGGER_LEVEL = logging.INFO
+if env.isDebug():
     LOGGER_LEVEL = logging.DEBUG
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -23,7 +24,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARN)
 
 
-def startSamowareLongPolling(telegram_id: int, context: SamowareContext) -> None:
+def startHandler(telegram_id: int, context: SamowareContext) -> asyncio.Task:
     async def _isActive():
         nonlocal telegram_id
         return database.isClientActive(telegram_id)
@@ -45,8 +46,11 @@ def startSamowareLongPolling(telegram_id: int, context: SamowareContext) -> None
             format="markdown",
         )
 
-    samoware_client.startLongPolling(
-        context, _isActive, _onMail, _onContextUpdate, _onSessionLost
+    return asyncio.create_task(
+        samoware_client.longPollingTask(
+            context, _isActive, _onMail, _onContextUpdate, _onSessionLost
+        ),
+        name=f"handler-{telegram_id}"
     )
 
 
@@ -70,17 +74,19 @@ async def onMail(telegram_id: int, mail: samoware_client.Mail) -> None:
         )
 
 
-async def activate(telegram_id: int, samovar_login: str, samovar_password: str) -> None:
+async def activate(
+    telegram_id: int, samoware_login: str, samoware_password: str
+) -> None:
     if database.isClientActive(telegram_id):
         await telegram_bot.send_message(telegram_id, "Доступ уже был выдан.")
         return
-    context = samoware_client.login(samovar_login, samovar_password)
+    context = samoware_client.login(samoware_login, samoware_password)
     if context is None:
         await telegram_bot.send_message(telegram_id, "Неверный логин или пароль.")
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
     database.addClient(telegram_id, context)
-    startSamowareLongPolling(telegram_id, context)
+    startHandler(telegram_id, context)
     await telegram_bot.send_message(
         telegram_id,
         "Доступ выдан. Все новые письма будут пересылаться в этот чат.",
@@ -99,16 +105,44 @@ async def deactivate(telegram_id: int) -> None:
     logging.info(f"User {telegram_id} stopped bot")
 
 
-async def main() -> None:
-    logging.info("loading clients...")
-    database.initDB()
+async def loadHandlers() -> list[asyncio.Task]:
+    logging.info("loading handlers...")
+    handlerTasks = []
     for client in database.getAllClients():
-        samoware_context = database.getSamowareContext(client[0])
-        startSamowareLongPolling(client[0], samoware_context)
-    logging.info("loaded clients")
+        (telegram_id, samoware_context) = client
+        handlerTasks.append(startHandler(telegram_id, samoware_context))
+    logging.info("handlers have loaded")
+    return handlerTasks
+
+
+def setupShutdown(eventLoop, handlers):
+    async def shutdown(signal) -> None:
+        logging.info(f"received exit signal {signal}")
+        logging.info("shutdowning all handlers...")
+        logging.debug(f"tasks to shutdown: {len(handlers)}")
+        logging.info(f"shutdowning bot...")
+        await telegram_bot.stopBot()
+        [task.cancel() for task in handlers]
+        await asyncio.gather(*handlers)
+        logging.info("closing db connection")
+        database.closeConnection()
+        logging.info("application has stopped successfully. exiting...")
+
+    for s in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
+        eventLoop.add_signal_handler(s, lambda s=s: asyncio.create_task(shutdown(s)))
+
+
+async def main() -> None:
+    logging.info("starting the application...")
+    database.initDB()
+
+    handlers = await loadHandlers()
+
+    setupShutdown(asyncio.get_event_loop(), handlers)
 
     await telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
-    await asyncio.gather(*asyncio.all_tasks())
+    await asyncio.gather(*[task for task in asyncio.all_tasks() if task is not asyncio.current_task()])
+
 
 
 if __name__ == "__main__":

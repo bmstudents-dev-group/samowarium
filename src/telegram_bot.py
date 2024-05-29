@@ -1,10 +1,6 @@
 from telegram import Update, InputMediaDocument
 import telegram
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    ContextTypes,
-)
+from telegram.ext import Application, CommandHandler, ContextTypes, Updater
 import logging
 from typing import Callable, Awaitable
 import asyncio
@@ -139,3 +135,10 @@ async def startBot(
     await application.start()
     logging.info("starting telegram polling...")
     await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+
+
+async def stopBot():
+    # application.stop_running()
+    await application.updater.stop()
+    await application.stop()
+    await application.shutdown()
