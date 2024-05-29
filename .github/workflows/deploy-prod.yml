@@ -15,6 +15,14 @@ on:
         type: boolean
         default: false
         required: true
+      dev-debug-logs:
+        description: 'Enable DEBUG level logs on dev stand'
+        type: boolean
+        default: false
+      prod-debug-logs:
+        description: 'Enable DEBUG level logs on prod stand'
+        type: boolean
+        default: false
 
 jobs:
   build-and-push-image:
@@ -63,6 +71,11 @@ jobs:
           echo ENV=DEV >> .env;
           echo TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }} >> .env;
           echo VERSION=$(git rev-parse --short HEAD) >> .env;
+      
+      - name: Enable DEBUG logs
+        if: ${{ dev-debug-logs }}
+        run: |
+          echo DEBUG= >> .env;
   
       - name: Configure Docker Host
         uses: khaledez/configure-docker-host@v2
@@ -103,7 +116,12 @@ jobs:
           echo ENV=PROD >> .env;
           echo TELEGRAM_TOKEN=${{ secrets.PROD_TG_TOKEN }} >> .env;
           echo VERSION=$(git rev-parse --short HEAD) >> .env;
-  
+      
+      - name: Enable DEBUG logs
+        if: ${{ prod-debug-logs }}
+        run: |
+          echo DEBUG= >> .env;
+          
       - name: Configure Docker Host
         uses: khaledez/configure-docker-host@v2
         with:
