@@ -50,7 +50,7 @@ def startHandler(telegram_id: int, context: SamowareContext) -> asyncio.Task:
         samoware_client.longPollingTask(
             context, _isActive, _onMail, _onContextUpdate, _onSessionLost
         ),
-        name=f"handler-{telegram_id}"
+        name=f"handler-{telegram_id}",
     )
 
 
@@ -141,8 +141,9 @@ async def main() -> None:
     setupShutdown(asyncio.get_event_loop(), handlers)
 
     await telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
-    await asyncio.gather(*[task for task in asyncio.all_tasks() if task is not asyncio.current_task()])
-
+    await asyncio.gather(
+        *[task for task in asyncio.all_tasks() if task is not asyncio.current_task()]
+    )
 
 
 if __name__ == "__main__":
