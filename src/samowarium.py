@@ -23,6 +23,8 @@ logging.basicConfig(
 
 logging.getLogger("httpx").setLevel(logging.WARN)
 
+handlers: list[asyncio.Task] | None = None
+
 
 def startHandler(telegram_id: int, context: SamowareContext) -> asyncio.Task:
     async def _isActive():
@@ -86,7 +88,7 @@ async def activate(
         logging.info(f"User {telegram_id} entered wrong login or password")
         return
     database.addClient(telegram_id, context)
-    startHandler(telegram_id, context)
+    handlers.append(startHandler(telegram_id, context))
     await telegram_bot.send_message(
         telegram_id,
         "Доступ выдан. Все новые письма будут пересылаться в этот чат.",
@@ -115,18 +117,18 @@ async def loadHandlers() -> list[asyncio.Task]:
     return handlerTasks
 
 
-def setupShutdown(eventLoop, handlers):
+def setupShutdown(eventLoop):
     async def shutdown(signal) -> None:
+        global handlers
         logging.info(f"received exit signal {signal}")
-        logging.info("shutdowning all handlers...")
-        logging.debug(f"tasks to shutdown: {len(handlers)}")
-        logging.info(f"shutdowning bot...")
         await telegram_bot.stopBot()
-        [task.cancel() for task in handlers]
+        logging.info("shutting down all handlers...")
+        logging.debug(f"tasks to shutdown: {len(handlers)}")
+        [task.cancel() for task in handlers if not (task.done() or task.cancelled())]
         await asyncio.gather(*handlers)
         logging.info("closing db connection")
         database.closeConnection()
-        logging.info("application has stopped successfully. exiting...")
+        logging.info("application has stopped successfully")
 
     for s in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
         eventLoop.add_signal_handler(s, lambda s=s: asyncio.create_task(shutdown(s)))
@@ -136,9 +138,10 @@ async def main() -> None:
     logging.info("starting the application...")
     database.initDB()
 
+    global handlers
     handlers = await loadHandlers()
 
-    setupShutdown(asyncio.get_event_loop(), handlers)
+    setupShutdown(asyncio.get_event_loop())
 
     await telegram_bot.startBot(onActivate=activate, onDeactivate=deactivate)
     await asyncio.gather(

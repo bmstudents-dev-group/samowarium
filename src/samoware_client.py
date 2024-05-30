@@ -275,7 +275,7 @@ async def longPollUpdatesAsync(context: SamowareContext) -> str:
             context.ackSeq = int(tree.attrib["respSeq"])
         return response_text
     except asyncio.exceptions.CancelledError as e:
-        logging.debug("cathing exception CancelledError")
+        logging.debug("catching exception CancelledError")
         raise e
     finally:
         await http_session.close()

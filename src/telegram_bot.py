@@ -1,6 +1,6 @@
 from telegram import Update, InputMediaDocument
 import telegram
-from telegram.ext import Application, CommandHandler, ContextTypes, Updater
+from telegram.ext import Application, CommandHandler, ContextTypes
 import logging
 from typing import Callable, Awaitable
 import asyncio
@@ -31,11 +31,11 @@ async def tg_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         update.effective_chat.id, update.effective_message.id
     )
     if len(context.args) != 2:
+        logging.debug(
+            f"client {update.effective_user.id} entered login and password in wrong format"
+        )
         await update.message.reply_html(
             "Неверный формат использования команды:\n/login <i>логин</i> <i>пароль</i>"
-        )
-        logging.debug(
-            f"client entered login and password in wrong format: {context.args}"
         )
         return
     user = update.effective_user.id
@@ -134,11 +134,12 @@ async def startBot(
     await application.initialize()
     await application.start()
     logging.info("starting telegram polling...")
-    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+    await application.updater.start_polling()
 
 
 async def stopBot():
-    # application.stop_running()
+    logging.info("shutting down the bot...")
     await application.updater.stop()
     await application.stop()
     await application.shutdown()
+    logging.info("telegram bot is shutted down")
