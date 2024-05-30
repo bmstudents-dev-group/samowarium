@@ -1,102 +1,95 @@
-import sqlite3
-import json
-import dateutil.parser
-import util
-import logging
+from sqlite3 import connect
+from pickle import dumps, loads
+from typing import Self
+from util import make_dir_if_not_exist
+from logging import info, debug
 
 from samoware_client import SamowareContext
 
-DB_FOLDER_PATH = "db"
-DB_PATH = f"{DB_FOLDER_PATH}/database.db"
-util.makeDirIfNotExist(DB_FOLDER_PATH)
-# TODO: в рамках рефакторинга избавиться от глобального состояния
-db = sqlite3.connect(DB_PATH, check_same_thread=False)
 
+class Database:
+    def __init__(self, DB_PATH: str) -> None:
+        self.path = DB_PATH
 
-def map_context_to_dict(context: SamowareContext) -> dict:
-    return {
-        "login": context.login,
-        "ack_seq": context.ackSeq,
-        "command_id": context.command_id,
-        "cookies": context.cookies,
-        "last_revalidate": context.last_revalidate.isoformat(),
-        "request_id": context.request_id,
-        "session": context.session,
-        "rand": context.rand,
-    }
+    def __enter__(self) -> Self:
+        self.initialize()
+        return self
 
+    def __exit__(self, *args) -> None:
+        self.close()
 
-def map_context_from_dict(d: dict) -> SamowareContext:
-    return SamowareContext(
-        login=d["login"],
-        session=d["session"],
-        request_id=d["request_id"],
-        command_id=d["command_id"],
-        rand=d["rand"],
-        ackSeq=d["ack_seq"],
-        last_revalidate=dateutil.parser.isoparse(d["last_revalidate"]),
-        cookies=d["cookies"],
-    )
-
-
-def initDB():
-    db.execute(
-        "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
-    )
-    logging.info("db was initialized")
-
-
-def closeConnection():
-    db.close()
-
-
-def addClient(telegram_id: int, context: SamowareContext) -> None:
-    context_encoded = json.dumps(map_context_to_dict(context))
-    db.execute(
-        "INSERT INTO clients VALUES(?, ?)",
-        (telegram_id, context_encoded),
-    )
-    db.commit()
-
-
-def setSamowareContext(telegram_id: int, context: SamowareContext) -> None:
-    context_encoded = json.dumps(map_context_to_dict(context))
-    db.execute(
-        "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
-        (context_encoded, telegram_id),
-    )
-    db.commit()
-
-
-def getSamowareContext(telegram_id: int) -> SamowareContext:
-    context_encoded = db.execute(
-        "SELECT samoware_context FROM clients WHERE telegram_id=?",
-        (telegram_id,),
-    ).fetchone()
-    context = map_context_from_dict(json.loads(context_encoded[0]))
-    return context
-
-
-def isClientActive(telegram_id: int) -> bool:
-    result = db.execute(
-        "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
-    ).fetchone()[0]
-    return result != 0
-
-
-def getAllClients() -> list:
-    def mapClient(client):
-        (telegram_id, context) = client
-        return (telegram_id, map_context_from_dict(json.loads(context)))
-
-    return list(
-        map(
-            mapClient,
-            db.execute("SELECT telegram_id, samoware_context FROM clients").fetchall(),
+    def initialize(self) -> None:
+        debug("initializing db...")
+        make_dir_if_not_exist(self.path)
+        self.connection = connect(self.path, check_same_thread=False)
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
         )
-    )
+        info("db was initialized")
 
+    def close(self) -> None:
+        debug("trying to close database")
+        if self.connection is None:
+            raise RuntimeError("can not close an uninitialized database")
+        self.connection.close()
+        info("database was closed")
 
-def removeClient(telegram_id: int) -> None:
-    db.execute("DELETE FROM clients WHERE telegram_id=?", (telegram_id,))
-    db.commit()
+    def add_client(self, telegram_id: int, context: SamowareContext) -> None:
+        context_encoded = dumps(context)
+        self.connection.execute(
+            "INSERT INTO clients VALUES(?, ?)",
+            (telegram_id, context_encoded),
+        )
+        self.connection.commit()
+        debug(f"client {telegram_id} has inserted")
+
+    def set_samoware_context(self, telegram_id: int, context: SamowareContext) -> None:
+        context_encoded = loads(context)
+        self.connection.execute(
+            "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
+            (context_encoded, telegram_id),
+        )
+        self.connection.commit()
+        debug(f"samoware context for the client {telegram_id} has inserted")
+
+    def get_samoware_context(self, telegram_id: int) -> SamowareContext:
+        context_encoded = self.connection.execute(
+            "SELECT samoware_context FROM clients WHERE telegram_id=?",
+            (telegram_id,),
+        ).fetchone()
+        context = loads(context_encoded[0])
+        debug(f"requested samoware context for the client {telegram_id}")
+        return context
+
+    def is_client_active(self, telegram_id: int) -> bool:
+        is_active = (
+            self.connection.execute(
+                "SELECT COUNT(*) FROM clients WHERE telegram_id = ?", (telegram_id,)
+            ).fetchone()[0]
+            != 0
+        )
+        debug(f"client {telegram_id} is active: {is_active}")
+        return is_active
+
+    def get_all_clients(self) -> list:
+        def map_client_from_tuple(client):
+            (telegram_id, context) = client
+            return (telegram_id, loads(context))
+
+        clients = list(
+            map(
+                map_client_from_tuple,
+                self.connection.execute(
+                    "SELECT telegram_id, samoware_context FROM clients"
+                ).fetchall(),
+            )
+        )
+        debug(f"fetching all clients from database, an amount of the clients {len(clients)}")
+        return clients
+
+    def remove_client(self, telegram_id: int) -> None:
+        self.connection.execute(
+            "DELETE FROM clients WHERE telegram_id=?", (telegram_id,)
+        )
+        self.connection.commit()
+        debug(f"client {telegram_id} was removed")
