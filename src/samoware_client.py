@@ -144,7 +144,7 @@ async def longPollingTask(
                 context = revalidate(context)
                 await onContextUpdate(context)
             retry_count = 0
-        except RuntimeError:  # It happens when samowarium has been killed
+        except asyncio.CancelledError:  # It happens when samowarium has been killed
             break
         except UnauthorizedError:  # Session lost
             logging.info(f"session for {context.login} expired")
@@ -160,14 +160,6 @@ async def longPollingTask(
             await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
 
     logging.info(f"longpolling for {context.login} stopped")
-
-
-def startLongPolling(
-    context: SamowareContext, isActive, onMail, onContextUpdate, onSessionLost
-) -> None:
-    asyncio.create_task(
-        longPollingTask(context, isActive, onMail, onContextUpdate, onSessionLost)
-    )
 
 
 def login(login: str, password: str) -> SamowareContext | None:
@@ -258,29 +250,35 @@ async def longPollUpdatesAsync(context: SamowareContext) -> str:
             total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
         )
     )
-    response = await http_session.get(
-        f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ackSeq}&maxWait=20&random={nextRand(context)}",
-        cookies=context.cookies,
-    )
-    response_text = await response.text()
-    await http_session.close()
-    logging.debug(
-        f"Samoware longpoll response code: {response.status}, text: {response_text}"
-    )
-    if response.status == 550:
-        logging.error(
-            f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}"
+    try:
+        response = await http_session.get(
+            f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ackSeq}&maxWait=20&random={nextRand(context)}",
+            cookies=context.cookies,
         )
-        raise UnauthorizedError
-    if response.status != 200:
-        logging.error(
-            f"received non 200 code in longPollUpdates: {response.status}\nresponse: {response_text}"
+        response_text = await response.text()
+        await http_session.close()
+        logging.debug(
+            f"Samoware longpoll response code: {response.status}, text: {response_text}"
         )
-        raise urllib.error.HTTPError
-    tree = ET.fromstring(response_text)
-    if "respSeq" in tree.attrib:
-        context.ackSeq = int(tree.attrib["respSeq"])
-    return response_text
+        if response.status == 550:
+            logging.error(
+                f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}"
+            )
+            raise UnauthorizedError
+        if response.status != 200:
+            logging.error(
+                f"received non 200 code in longPollUpdates: {response.status}\nresponse: {response_text}"
+            )
+            raise urllib.error.HTTPError
+        tree = ET.fromstring(response_text)
+        if "respSeq" in tree.attrib:
+            context.ackSeq = int(tree.attrib["respSeq"])
+        return response_text
+    except asyncio.exceptions.CancelledError as e:
+        logging.debug("catching exception CancelledError")
+        raise e
+    finally:
+        await http_session.close()
 
 
 def getInboxUpdates(context: SamowareContext) -> list:
