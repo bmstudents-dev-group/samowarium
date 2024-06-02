@@ -69,7 +69,7 @@ async def send_message(
             logging.info(
                 f"retrying to send message for {telegram_id} in {SEND_RETRY_DELAY_SEC} seconds..."
             )
-            await asyncio.wait(SEND_RETRY_DELAY_SEC)
+            await asyncio.sleep(SEND_RETRY_DELAY_SEC)
 
 
 async def send_attachments(
@@ -96,7 +96,7 @@ async def send_attachments(
             logging.info(
                 f"retrying to send attachments for {telegram_id} in {SEND_RETRY_DELAY_SEC} seconds..."
             )
-            await asyncio.wait(SEND_RETRY_DELAY_SEC)
+            await asyncio.sleep(SEND_RETRY_DELAY_SEC)
 
 
 async def tg_about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
