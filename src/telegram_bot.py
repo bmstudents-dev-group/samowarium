@@ -53,7 +53,9 @@ async def send_message(
     logging.debug(f'sending message "{message}" to {telegram_id} ...')
     while not sent:
         try:
-            sent_message = await application.bot.send_message(telegram_id, message, parse_mode=format)
+            sent_message = await application.bot.send_message(
+                telegram_id, message, parse_mode=format
+            )
             message_id = sent_message.message_id
             sent = True
             logging.info(f"sent message #{message_id} to {telegram_id}")
@@ -81,7 +83,9 @@ async def send_attachments(
     logging.debug(f"sending attachments ({attachment_names}) to {telegram_id} ...")
     while not sent:
         try:
-            sent_message = await application.bot.send_media_group(telegram_id, media_group)
+            sent_message = await application.bot.send_media_group(
+                telegram_id, media_group
+            )
             message_id = sent_message.message_id
             sent = True
             logging.info(f"sent attachments #{message_id} to {telegram_id}")
