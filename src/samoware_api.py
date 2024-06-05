@@ -94,38 +94,41 @@ class Mail:
         self.body = body
 
 
-def login(login: str, password: str) -> SamowarePollingContext:
-    loginUrl = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
+async def login(
+    login: str, password: str
+) -> SamowarePollingContext | None:
+    log.debug(f"logging in for {login}")
+    url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     if SESSION_TOKEN_PATTERN.match(password):
-        loginUrl = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={password}"
-    response = requests.get(loginUrl, timeout=HTTP_COMMON_TIMEOUT_SEC)
+        url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={password}"
+    response = requests.get(url=url)
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
+        log.debug(f"logging in response ({login}) does not have session tag")
         return None
     session = tree.find("session").attrib["urlID"]
 
-    # set_session_info(context)
-    # open_inbox(context)
+    log.debug(f"successful login for {login}")
 
     return SamowarePollingContext(session=session)
 
 
-def revalidate(login: str, session: str) -> SamowarePollingContext:
+async def revalidate(
+    login: str, session: str
+) -> SamowarePollingContext | None:
+    log.debug(f"revalidating session for {login}")
     response = requests.get(
-        f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1",
-        timeout=HTTP_COMMON_TIMEOUT_SEC,
+        url=f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1",
     )
-    log.debug(response.text)
+
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
+        log.debug(f"revalidation response ({login}) does not have session tag")
         return None
+    
     new_session = tree.find("session").attrib["urlID"]
-
-    # set_session_info(context)
-    # open_inbox(context)
-
-    log.info(f"session for {login} has revalidated")
-
+    log.debug(f"successful revalidation {login}")
+    
     return SamowarePollingContext(session=new_session)
 
 async def longpoll_updates(
