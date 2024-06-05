@@ -1,6 +1,7 @@
 # TODO: async get post
 import html
 import datetime
+from http.client import HTTPResponse
 from typing import Self
 
 import requests
@@ -11,10 +12,9 @@ import xml.etree.ElementTree as ET
 from aiohttp import ClientSession
 from urllib.error import HTTPError
 
+from const import HTTP_COMMON_TIMEOUT_SEC, HTTP_FILE_LOAD_TIMEOUT_SEC
+
 SESSION_TOKEN_PATTERN = compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
-HTTP_COMMON_TIMEOUT_SEC = 5
-HTTP_CONENCT_LONGPOLL_TIMEOUT_SEC = 25
-HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC = 60
 
 
 class UnauthorizedError(Exception):
@@ -64,8 +64,7 @@ class MailHeader:
         flags: str,
         local_time: str,
         utc_time: str,
-        to_mail: str,
-        to_name: str,
+        recipients: tuple[str, str],
         from_mail: str,
         from_name: str,
         subject: str,
@@ -74,18 +73,16 @@ class MailHeader:
         self.flags = flags
         self.local_time = local_time
         self.utc_time = utc_time
-        self.to_mail = to_mail
-        self.to_name = to_name
+        self.recipients = recipients
         self.from_mail = from_mail
         self.from_name = from_name
         self.subject = subject
 
 
 class MailBody:
-    def __init__(self, text: str, attachment_files: list, attachment_names: list[str]):
+    def __init__(self, text: str, attachments: list[tuple[HTTPResponse, str]]):
         self.text = text
-        self.attachment_files = attachment_files
-        self.attachment_names = attachment_names
+        self.attachments = attachments
 
 
 class Mail:
@@ -94,9 +91,7 @@ class Mail:
         self.body = body
 
 
-async def login(
-    login: str, password: str
-) -> SamowarePollingContext | None:
+async def login(login: str, password: str) -> SamowarePollingContext | None:
     log.debug(f"logging in for {login}")
     url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     if SESSION_TOKEN_PATTERN.match(password):
@@ -113,9 +108,7 @@ async def login(
     return SamowarePollingContext(session=session)
 
 
-async def revalidate(
-    login: str, session: str
-) -> SamowarePollingContext | None:
+async def revalidate(login: str, session: str) -> SamowarePollingContext | None:
     log.debug(f"revalidating session for {login}")
     response = requests.get(
         url=f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1",
@@ -125,14 +118,15 @@ async def revalidate(
     if tree.find("session") is None:
         log.debug(f"revalidation response ({login}) does not have session tag")
         return None
-    
+
     new_session = tree.find("session").attrib["urlID"]
     log.debug(f"successful revalidation {login}")
-    
+
     return SamowarePollingContext(session=new_session)
 
+
 async def longpoll_updates(
-    http_session: ClientSession, context: SamowarePollingContext
+    context: SamowarePollingContext, http_session: ClientSession
 ) -> tuple[str, SamowarePollingContext]:
     url = f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ack_seq}&maxWait=20&random={context.rand}"
     response = await http_session.get(
@@ -140,7 +134,6 @@ async def longpoll_updates(
         cookies=context.cookies,
     )
     response_text = await response.text()
-    await http_session.close()
     log.debug(
         f"samoware longpoll response code: {response.status}, text: {response_text}"
     )
@@ -158,16 +151,12 @@ async def longpoll_updates(
     ack_seq = context.ack_seq
     if "respSeq" in tree.attrib:
         ack_seq = int(tree.attrib["respSeq"])
-    return (
-        response_text,
-        context.make_next(
-            ack_seq=ack_seq,
-            rand=context.rand+1
-        )
-    )
+    return (response_text, context.make_next(ack_seq=ack_seq, rand=context.rand + 1))
 
 
-def get_inbox_updates(context: SamowarePollingContext) -> tuple[list[MailHeader], SamowarePollingContext]:
+def get_new_mails(
+    context: SamowarePollingContext,
+) -> tuple[list[MailHeader], SamowarePollingContext]:
     url = f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}"
     response = requests.get(
         url=url,
@@ -207,14 +196,14 @@ def get_inbox_updates(context: SamowarePollingContext) -> tuple[list[MailHeader]
                 subject = html.escape(element.find("Subject").text)
             else:
                 subject = "Письмо без темы"
-            to_mail = []
-            to_name = []
+            to = []
             for el in element.findall("E-To"):
-                to_mail.append(el.text)
+                to_mail = el.text
                 if "realName" in el.attrib:
-                    to_name.append(el.attrib["realName"])
+                    to_name = el.attrib["realName"]
                 else:
-                    to_name.append(el.text)
+                    to_name = el.append(el.text)
+                to.append((to_mail, to_name))
 
         mail_headers.append(
             MailHeader(
@@ -223,8 +212,7 @@ def get_inbox_updates(context: SamowarePollingContext) -> tuple[list[MailHeader]
                 from_name=from_name,
                 local_time=local_time,
                 subject=subject,
-                to_mail=to_mail,
-                to_name=to_name,
+                recipients=to,
                 uid=uid,
                 utc_time=utc_time,
             )
@@ -232,10 +220,10 @@ def get_inbox_updates(context: SamowarePollingContext) -> tuple[list[MailHeader]
     return (
         mail_headers,
         context.make_next(
-            request_id=context.request_id+1,
-            rand=context.rand+1,
-            command_id=context.command_id+1
-        )
+            request_id=context.request_id + 1,
+            rand=context.rand + 1,
+            command_id=context.command_id + 1,
+        ),
     )
 
 
@@ -264,8 +252,8 @@ def set_session_info(context: SamowarePollingContext) -> SamowarePollingContext:
     )
     return context.make_next(
         cookies=response.cookies,
-        request_id=context.request_id+1,
-        rand=context.rand+1
+        request_id=context.request_id + 1,
+        rand=context.rand + 1,
     )
 
 
@@ -287,11 +275,11 @@ def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
             f"received non 200 code in openInbox: {response.status_code}\nresponse: {response.text}"
         )
         raise HTTPError(url=url, code=response.status_code, msg=response.text)
-    
+
     return context.make_next(
-        request_id=context.request_id+1,
-        rand=context.rand+1,
-        command_id=context.command_id+5,
+        request_id=context.request_id + 1,
+        rand=context.rand + 1,
+        command_id=context.command_id + 5,
     )
 
 
@@ -334,20 +322,18 @@ def get_mail_body_by_id(context: SamowarePollingContext, uid: int) -> MailBody:
     text = text.replace("\r", "\n\n")
     text = re.sub(r"(\n){2,}", "\n\n", text).strip()
 
-    attachment_files = []
-    attachment_names = []
+    attachments = []
     for attachment_html in tree.find_all("cg-message-attachment"):
         attachment_url = "https://student.bmstu.ru" + attachment_html["attachment-ref"]
         file = requests.get(
             attachment_url,
             cookies=context.cookies,
             stream=True,
-            timeout=HTTP_COMMON_TIMEOUT_SEC,
+            timeout=HTTP_FILE_LOAD_TIMEOUT_SEC,
         ).raw
         name = attachment_html["attachment-name"]
-        attachment_files.append(file)
-        attachment_names.append(name)
-    return MailBody(text, attachment_files, attachment_names)
+        attachments((file, name))
+    return MailBody(text, attachments)
 
 
 def html_element_to_text(element):
@@ -398,3 +384,7 @@ def html_element_to_text(element):
             for child in element.children:
                 text += html_element_to_text(child)
             return text
+
+
+def has_updates(response: str) -> bool:
+    return '<folderReport folder="INBOX-MM-1" mode="notify"/>' in response
