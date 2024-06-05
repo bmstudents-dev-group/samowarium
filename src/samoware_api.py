@@ -29,7 +29,7 @@ class SamowarePollingContext:
         rand: int = 0,
         command_id: int = 0,
         ack_seq: int = 0,
-        cookies: str = "",
+        cookies: dict = {},
     ) -> None:
         self.session = session
         self.request_id = request_id
@@ -45,7 +45,7 @@ class SamowarePollingContext:
         rand: int | None = None,
         command_id: int | None = None,
         ack_seq: int | None = None,
-        cookies: str | None = None,
+        cookies: dict | None = None,
     ) -> Self:
         return SamowarePollingContext(
             session=self.session if session is None else session,
