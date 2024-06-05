@@ -1,4 +1,4 @@
-requests==2.31.0
+requests==2.32.2
 beautifulsoup4==4.12.3
 aiohttp==3.9.4
 python-telegram-bot==20.8
