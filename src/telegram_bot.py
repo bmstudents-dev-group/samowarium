@@ -83,12 +83,14 @@ async def send_attachments(
     logging.debug(f"sending attachments ({attachment_names}) to {telegram_id} ...")
     while not sent:
         try:
-            sent_message = await application.bot.send_media_group(
+            sent_messages = await application.bot.send_media_group(
                 telegram_id, media_group
             )
-            message_id = sent_message.message_id
+            message_ids = []
+            for i in range(len(sent_messages)):
+                message_ids.append(sent_messages[i].message_id)
             sent = True
-            logging.info(f"sent attachments #{message_id} to {telegram_id}")
+            logging.info(f"sent attachments #{message_ids} to {telegram_id}")
         except telegram.error.BadRequest as error:
             logging.exception("exception in send_attachments:\n" + str(error))
             logging.info("error is bad request. Not retrying")
