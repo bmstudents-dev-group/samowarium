@@ -5,8 +5,7 @@ from pickle import dumps, loads
 from typing import Self
 from samoware_api import SamowarePollingContext
 from util import make_dir_if_not_exist
-
-from client_handler import ClientHandler
+from context import Context
 
 
 class RawContext:
@@ -31,7 +30,7 @@ class RawContext:
         self.cookies = cookies
 
 
-def map_context_to_raw(context: ClientHandler.Context) -> RawContext:
+def map_context_to_raw(context: Context) -> RawContext:
     return RawContext(
         login=context.samoware_login,
         session=context.polling_context.session,
@@ -44,8 +43,8 @@ def map_context_to_raw(context: ClientHandler.Context) -> RawContext:
     )
 
 
-def map_raw_to_context(raw: RawContext, telegram_id: int) -> ClientHandler.Context:
-    return ClientHandler.Context(
+def map_raw_to_context(raw: RawContext, telegram_id: int) -> Context:
+    return Context(
         polling_context=SamowarePollingContext(
             ack_seq=raw.ackSeq,
             command_id=raw.command_id,
@@ -86,7 +85,7 @@ class Database:
         self.connection.close()
         log.info("database was closed")
 
-    def add_client(self, telegram_id: int, context: ClientHandler.Context) -> None:
+    def add_client(self, telegram_id: int, context: Context) -> None:
         context_encoded = dumps(map_context_to_raw(context))
         self.connection.execute(
             "INSERT INTO clients VALUES(?, ?)",
@@ -95,9 +94,7 @@ class Database:
         self.connection.commit()
         log.debug(f"client {telegram_id} has inserted")
 
-    def set_handler_context(
-        self, telegram_id: int, context: ClientHandler.Context
-    ) -> None:
+    def set_handler_context(self, telegram_id: int, context: Context) -> None:
         context_encoded = dumps(map_context_to_raw(context))
         self.connection.execute(
             "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
@@ -106,13 +103,15 @@ class Database:
         self.connection.commit()
         log.debug(f"samoware context for the client {telegram_id} has inserted")
 
-    def get_samoware_context(self, telegram_id: int) -> ClientHandler.Context | None:
+    def get_samoware_context(self, telegram_id: int) -> Context | None:
         row = self.connection.execute(
             "SELECT samoware_context FROM clients WHERE telegram_id=?",
             (telegram_id,),
         ).fetchone()
         if row is None:
-            log.warning(f"trying to fetch context for {telegram_id}, but context does not exist")
+            log.warning(
+                f"trying to fetch context for {telegram_id}, but context does not exist"
+            )
             return None
         (context_encoded,) = row
         raw_context = map_raw_to_context(loads(context_encoded), telegram_id)
@@ -129,7 +128,7 @@ class Database:
         log.debug(f"client {telegram_id} is active: {is_active}")
         return is_active
 
-    def get_all_clients(self) -> list[tuple[int, ClientHandler.Context]]:
+    def get_all_clients(self) -> list[tuple[int, Context]]:
         def map_client_from_tuple(client):
             (telegram_id, context) = client
             return (telegram_id, map_raw_to_context(loads(context), telegram_id))

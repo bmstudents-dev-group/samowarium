@@ -10,11 +10,7 @@ from const import TELEGRAM_SEND_RETRY_DELAY_SEC
 from database import Database
 import env
 
-MessageSender = Callable[
-    [int, str, str, Optional[list[tuple[HTTPResponse, str]]]], Awaitable[None]
-]
-
-START_PROMPT = "Выдать доступ боту до почты :\n/login <i>логин</i> <i>пароль</i>\n\nОтозвать доступ:\n/stop\n\nFAQ:\n/about"
+START_PROMPT = "Выдать доступ боту до почты :\n/login _логин_ _пароль_\n\nОтозвать доступ:\n/stop\n\nFAQ:\n/about"
 STOP_PROMPT = "Доступ отозван. Логин и сессия были удалены."
 ABOUT_PROMPT = """
     Samowarium - бот, который пересылает входящие письма в личные сообщения телеграм.
@@ -29,7 +25,7 @@ ABOUT_PROMPT = """
     Бот не хранит пароли пользователей, а лишь использует их однократно во время авторизации для получения токена сессии, после чего их забывает. Токен сессии почтового сервера возможно использовать только для работы с почтой, бот не может с помощью него получить доступ к остальным сервисам МГТУ.
 
     Версия: `{}-{}`
-            """
+"""
 LOGIN_WRONG_FORMAT_PROMPT = (
     "Неверный формат использования команды:\n/login <i>логин</i> <i>пароль</i>"
 )

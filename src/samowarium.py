@@ -1,3 +1,5 @@
+#!/bin/python3
+
 import signal
 from const import DB_PATH, LOGGER_FOLDER_PATH, LOGGER_PATH
 from telegram_bot import TelegramBot
@@ -45,8 +47,8 @@ def setup_logger():
 
 
 async def main() -> None:
-    logging.info("starting the application...")
     setup_logger()
+    logging.info("starting the application...")
     app = Application()
     await app.start()
     await asyncio.gather(

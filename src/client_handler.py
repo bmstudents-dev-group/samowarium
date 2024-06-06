@@ -5,10 +5,11 @@ import re
 from typing import Self
 
 from aiohttp import ClientSession, ClientTimeout
+from context import Context
 
 from const import (
     HTML_FORMAT,
-    HTTP_CONENCT_LONGPOLL_TIMEOUT_SEC,
+    HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
     HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
     LONGPOLL_RETRY_DELAY_SEC,
     MARKDOWN_FORMAT,
@@ -18,9 +19,8 @@ import samoware_api
 from samoware_api import (
     Mail,
     UnauthorizedError,
-    SamowarePollingContext,
 )
-from telegram_bot import MessageSender
+from util import MessageSender
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
@@ -34,23 +34,6 @@ HANDLER_IS_ALREADY_SHUTTED_DOWN = "Доступ уже был отозван."
 
 
 class ClientHandler:
-    class Context:
-        def __init__(
-            self,
-            telegram_id: int,
-            samoware_login: str,
-            polling_context: SamowarePollingContext | None = None,
-            last_revalidation: datetime | None = None,
-        ) -> None:
-            self.telegram_id = telegram_id
-            self.samoware_login = samoware_login
-            self.polling_context = polling_context
-            if self.polling_context is None:
-                self.polling_context = SamowarePollingContext()
-            self.last_revalidate = last_revalidation
-            if self.last_revalidate is None:
-                self.last_revalidate = datetime.now()
-
     def __init__(
         self,
         message_sender: MessageSender,
@@ -82,7 +65,7 @@ class ClientHandler:
         return ClientHandler(message_sender, db, context)
 
     async def make_from_context(
-        context: Self.Context, message_sender: MessageSender, db: Database
+        context: Context, message_sender: MessageSender, db: Database
     ) -> Self | None:
         return ClientHandler(message_sender, db, context)
 
@@ -101,7 +84,7 @@ class ClientHandler:
     async def polling(self) -> None:
         http_session = ClientSession(
             timeout=ClientTimeout(
-                connect=HTTP_CONENCT_LONGPOLL_TIMEOUT_SEC,
+                connect=HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
                 total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
             )
         )

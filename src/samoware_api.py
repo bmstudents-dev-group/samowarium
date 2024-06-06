@@ -14,7 +14,7 @@ from urllib.error import HTTPError
 
 from const import HTTP_COMMON_TIMEOUT_SEC, HTTP_FILE_LOAD_TIMEOUT_SEC
 
-SESSION_TOKEN_PATTERN = compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
+SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
 
 
 class UnauthorizedError(Exception):
