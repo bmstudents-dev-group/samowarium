@@ -91,7 +91,7 @@ class Mail:
         self.body = body
 
 
-async def login(login: str, password: str) -> SamowarePollingContext | None:
+def login(login: str, password: str) -> SamowarePollingContext | None:
     log.debug(f"logging in for {login}")
     url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     if SESSION_TOKEN_PATTERN.match(password):
@@ -108,7 +108,7 @@ async def login(login: str, password: str) -> SamowarePollingContext | None:
     return SamowarePollingContext(session=session)
 
 
-async def revalidate(login: str, session: str) -> SamowarePollingContext | None:
+def revalidate(login: str, session: str) -> SamowarePollingContext | None:
     log.debug(f"revalidating session for {login}")
     response = requests.get(
         url=f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1",

@@ -1,13 +1,18 @@
 import asyncio
-from http.client import HTTPResponse
 import logging as log
 from datetime import datetime, timedelta
 import re
-from typing import Awaitable, Callable, Optional, Self
+from typing import Self
 
 from aiohttp import ClientSession, ClientTimeout
 
-from const import HTML_FORMAT, HTTP_CONENCT_LONGPOLL_TIMEOUT_SEC, HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC, LONGPOLL_RETRY_DELAY_SEC, MARKDOWN_FORMAT
+from const import (
+    HTML_FORMAT,
+    HTTP_CONENCT_LONGPOLL_TIMEOUT_SEC,
+    HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
+    LONGPOLL_RETRY_DELAY_SEC,
+    MARKDOWN_FORMAT,
+)
 from database import Database
 import samoware_api
 from samoware_api import (
@@ -15,9 +20,17 @@ from samoware_api import (
     UnauthorizedError,
     SamowarePollingContext,
 )
+from telegram_bot import MessageSender
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
+
+SUCCESSFUL_LOGIN = "Доступ выдан. Все новые письма будут пересылаться в этот чат."
+CAN_NOT_REVALIDATE_PROMPT = "Невозможно продлить сессию из-за внутренней ошибки. Для продолжения работы необходима повторная авторизация\n/login _логин_ _пароль_"
+SESSION_EXPIRED_PROMPT = "Сессия доступа к почте истекла. Для продолжения работы необходима повторная авторизация\n/login _логин_ _пароль_"
+WRONG_CREDS_PROMPT = "Неверный логин или пароль."
+HANDLER_IS_ALREADY_WORKED = "Доступ уже был выдан."
+HANDLER_IS_ALREADY_SHUTTED_DOWN = "Доступ уже был отозван."
 
 
 class ClientHandler:
@@ -26,21 +39,21 @@ class ClientHandler:
             self,
             telegram_id: int,
             samoware_login: str,
-            polling_context: SamowarePollingContext,
+            polling_context: SamowarePollingContext | None = None,
             last_revalidation: datetime | None = None,
         ) -> None:
             self.telegram_id = telegram_id
             self.samoware_login = samoware_login
             self.polling_context = polling_context
+            if self.polling_context is None:
+                self.polling_context = SamowarePollingContext()
             self.last_revalidate = last_revalidation
             if self.last_revalidate is None:
                 self.last_revalidate = datetime.now()
 
     def __init__(
         self,
-        message_sender: Callable[
-            [int, str, str, Optional[list[tuple[HTTPResponse, str]]]], Awaitable[None]
-        ],
+        message_sender: MessageSender,
         db: Database,
         context: Context,
     ):
@@ -48,18 +61,42 @@ class ClientHandler:
         self.db = db
         self.context = context
 
-    def make_new() -> Self | None:
-        pass
+    async def make_new(
+        telegram_id: int,
+        samoware_login: str,
+        samoware_password: str,
+        message_sender: MessageSender,
+        db: Database,
+    ) -> Self | None:
+        if db.is_client_active(telegram_id):
+            message_sender(telegram_id, HANDLER_IS_ALREADY_WORKED, MARKDOWN_FORMAT)
+            return None
+        polling_context = samoware_api.login(samoware_login, samoware_password)
+        if polling_context is None:
+            message_sender(telegram_id, WRONG_CREDS_PROMPT, MARKDOWN_FORMAT)
+            return None
+        polling_context = samoware_api.set_session_info(polling_context)
+        polling_context = samoware_api.open_inbox(polling_context)
+        context = ClientHandler.Context(polling_context=polling_context)
+        db.add_client(telegram_id, context)
+        return ClientHandler(message_sender, db, context)
 
-    def make_from_db() -> Self | None:
-        pass
+    async def make_from_context(
+        context: Self.Context, message_sender: MessageSender, db: Database
+    ) -> Self | None:
+        return ClientHandler(message_sender, db, context)
 
     async def start_handling(self) -> asyncio.Task:
         self.polling_task = asyncio.create_task(self.polling())
         return self.polling_task
 
+    def get_polling_task(self) -> asyncio.Task:
+        return self.polling_task
+
     async def stop_handling(self) -> None:
-        self.polling_task.cancel()
+        if not (self.polling_task.cancelled() or self.polling_task.done()):
+            self.polling_task.cancel()
+        await asyncio.wait(self.polling_task)
 
     async def polling(self) -> None:
         http_session = ClientSession(
@@ -103,11 +140,13 @@ class ClientHandler:
                         await self.can_not_revalidate()
                         break
                     polling_context = new_context
+                    polling_context = samoware_api.set_session_info(polling_context)
+                    polling_context = samoware_api.open_inbox(polling_context)
                 retry_count = 0
                 self.context.polling_context = polling_context
-            except asyncio.CancelledError:  # It happens when samowarium has been killed
+            except asyncio.CancelledError:
                 break
-            except UnauthorizedError:  # Session lost
+            except UnauthorizedError:
                 log.info(f"session for {polling_context.login} expired")
                 await self.session_has_expired()
                 break
@@ -125,14 +164,14 @@ class ClientHandler:
     async def can_not_revalidate(self):
         await self.message_sender(
             self.context.telegram_id,
-            "Невозможно продлить сессию из-за внутренней ошибки. Для продолжения работы необходима повторная авторизация\n/login _логин_ _пароль_",
+            CAN_NOT_REVALIDATE_PROMPT,
             MARKDOWN_FORMAT,
         )
 
     async def session_has_expired(self):
         await self.message_sender(
             self.context.telegram_id,
-            "Сессия доступа к почте истекла. Для продолжения работы необходима повторная авторизация\n/login _логин_ _пароль_",
+            SESSION_EXPIRED_PROMPT,
             MARKDOWN_FORMAT,
         )
 

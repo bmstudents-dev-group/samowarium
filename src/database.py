@@ -106,11 +106,15 @@ class Database:
         self.connection.commit()
         log.debug(f"samoware context for the client {telegram_id} has inserted")
 
-    def get_samoware_context(self, telegram_id: int) -> ClientHandler.Context:
-        (context_encoded,) = self.connection.execute(
+    def get_samoware_context(self, telegram_id: int) -> ClientHandler.Context | None:
+        row = self.connection.execute(
             "SELECT samoware_context FROM clients WHERE telegram_id=?",
             (telegram_id,),
         ).fetchone()
+        if row is None:
+            log.warning(f"trying to fetch context for {telegram_id}, but context does not exist")
+            return None
+        (context_encoded,) = row
         raw_context = map_raw_to_context(loads(context_encoded), telegram_id)
         log.debug(f"requested samoware context for the client {telegram_id}")
         return raw_context
