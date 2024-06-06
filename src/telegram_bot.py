@@ -108,10 +108,11 @@ class TelegramBot:
         samoware_login = context.args[0]
         samoware_password = context.args[1]
         log.debug(f'client entered login "{samoware_login}" and password')
-        new_handler = ClientHandler.make_new(
+        new_handler = await ClientHandler.make_new(
             telegram_id, samoware_login, samoware_password, self.send_message, self.db
         )
         if new_handler is not None:
+            await new_handler.start_handling()
             self.handlers.append(new_handler)
         await self.application.bot.delete_messages(
             update.effective_chat.id, [update.effective_message.id, wait_message.id]

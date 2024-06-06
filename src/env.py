@@ -13,7 +13,7 @@ PROD_PROFILE_NAME = "PROD"
 
 
 def getProfile():
-    return os.environ.get(PROFILE_VAR_NAME, DEV_PROFILE_NAME, default="unknown")
+    return os.environ.get(PROFILE_VAR_NAME, default="unknown")
 
 
 def getVersion():

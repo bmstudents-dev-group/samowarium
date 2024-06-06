@@ -1,6 +1,6 @@
 # TODO: async get post
 import html
-import datetime
+from datetime import datetime
 from http.client import HTTPResponse
 from typing import Self
 
@@ -141,12 +141,12 @@ async def longpoll_updates(
         log.error(
             f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}"
         )
-        return UnauthorizedError
+        raise UnauthorizedError
     if response.status != 200:
         log.error(
             f"received non 200 code in longPollUpdates: {response.status}\nresponse: {response_text}"
         )
-        return HTTPError(url=url, code=response.status_code, msg=response.text)
+        raise HTTPError(url=url, code=response.status_code, msg=response.text)
     tree = ET.fromstring(response_text)
     ack_seq = context.ack_seq
     if "respSeq" in tree.attrib:
@@ -192,7 +192,10 @@ def get_new_mails(
                 from_name = element.find("E-From").attrib["realName"]
             else:
                 from_name = element.find("E-From").text
-            if element.find("Subject") is not None:
+            if (
+                element.find("Subject") is not None and
+                element.find("Subject").text is not None
+            ):
                 subject = html.escape(element.find("Subject").text)
             else:
                 subject = "Письмо без темы"
@@ -202,7 +205,7 @@ def get_new_mails(
                 if "realName" in el.attrib:
                     to_name = el.attrib["realName"]
                 else:
-                    to_name = el.append(el.text)
+                    to_name = el.text
                 to.append((to_mail, to_name))
 
         mail_headers.append(
@@ -332,7 +335,7 @@ def get_mail_body_by_id(context: SamowarePollingContext, uid: int) -> MailBody:
             timeout=HTTP_FILE_LOAD_TIMEOUT_SEC,
         ).raw
         name = attachment_html["attachment-name"]
-        attachments((file, name))
+        attachments.append((file, name))
     return MailBody(text, attachments)
 
 

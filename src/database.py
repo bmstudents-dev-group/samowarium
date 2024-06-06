@@ -16,7 +16,7 @@ class RawContext:
         request_id: int,
         command_id: int,
         rand: int,
-        ack_seq: int,
+        ackSeq: int,
         last_revalidate: datetime,
         cookies: dict,
     ):
@@ -25,7 +25,7 @@ class RawContext:
         self.request_id = request_id
         self.command_id = command_id
         self.rand = rand
-        self.ackSeq = ack_seq  # saving backward compability
+        self.ackSeq = ackSeq  # saving backward compability
         self.last_revalidate = last_revalidate
         self.cookies = cookies
 
@@ -94,7 +94,8 @@ class Database:
         self.connection.commit()
         log.debug(f"client {telegram_id} has inserted")
 
-    def set_handler_context(self, telegram_id: int, context: Context) -> None:
+    def set_handler_context(self, context: Context) -> None:
+        telegram_id = context.telegram_id
         context_encoded = dumps(map_context_to_raw(context))
         self.connection.execute(
             "UPDATE clients SET samoware_context=? WHERE telegram_id=?",

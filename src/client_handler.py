@@ -52,16 +52,17 @@ class ClientHandler:
         db: Database,
     ) -> Self | None:
         if db.is_client_active(telegram_id):
-            message_sender(telegram_id, HANDLER_IS_ALREADY_WORKED, MARKDOWN_FORMAT)
+            await message_sender(telegram_id, HANDLER_IS_ALREADY_WORKED, MARKDOWN_FORMAT)
             return None
         polling_context = samoware_api.login(samoware_login, samoware_password)
         if polling_context is None:
-            message_sender(telegram_id, WRONG_CREDS_PROMPT, MARKDOWN_FORMAT)
+            await message_sender(telegram_id, WRONG_CREDS_PROMPT, MARKDOWN_FORMAT)
             return None
         polling_context = samoware_api.set_session_info(polling_context)
         polling_context = samoware_api.open_inbox(polling_context)
-        context = ClientHandler.Context(polling_context=polling_context)
+        context = Context(telegram_id, samoware_login, polling_context)
         db.add_client(telegram_id, context)
+        await message_sender(telegram_id, SUCCESSFUL_LOGIN, MARKDOWN_FORMAT)
         return ClientHandler(message_sender, db, context)
 
     async def make_from_context(
@@ -79,7 +80,7 @@ class ClientHandler:
     async def stop_handling(self) -> None:
         if not (self.polling_task.cancelled() or self.polling_task.done()):
             self.polling_task.cancel()
-        await asyncio.wait(self.polling_task)
+        await asyncio.wait([self.polling_task])
 
     async def polling(self) -> None:
         http_session = ClientSession(
@@ -91,28 +92,27 @@ class ClientHandler:
 
         retry_count = 0
         polling_context = self.context.polling_context
-        log.info(f"longpolling for {polling_context.login} is started")
+        log.info(f"longpolling for {self.context.samoware_login} is started")
 
-        while await self.db.is_client_active(self.context.telegram_id):
+        while self.db.is_client_active(self.context.telegram_id):
             try:
                 self.db.set_handler_context(self.context)
                 (polling_result, polling_context) = await samoware_api.longpoll_updates(
                     polling_context, http_session
                 )
-                log.debug(f"polling result: {polling_result}")
                 if samoware_api.has_updates(polling_result):
                     (mails, polling_context) = samoware_api.get_new_mails(
                         polling_context
                     )
                     for mail_header in mails:
-                        log.info(f"new mail for {polling_context.login}")
+                        log.info(f"new mail for {self.context.telegram_id}")
                         log.debug(f"email flags: {mail_header.flags}")
                         mail_body = samoware_api.get_mail_body_by_id(
                             polling_context, mail_header.uid
                         )
                         await self.forward_mail(Mail(mail_header, mail_body))
                 if (
-                    polling_context.last_revalidate + REVALIDATE_INTERVAL
+                    self.context.last_revalidate + REVALIDATE_INTERVAL
                     < datetime.now()
                 ):
                     new_context = samoware_api.revalidate(polling_context)
@@ -125,24 +125,26 @@ class ClientHandler:
                     polling_context = new_context
                     polling_context = samoware_api.set_session_info(polling_context)
                     polling_context = samoware_api.open_inbox(polling_context)
+                    self.context.last_revalidate = datetime.now()
                 retry_count = 0
                 self.context.polling_context = polling_context
             except asyncio.CancelledError:
                 break
             except UnauthorizedError:
-                log.info(f"session for {polling_context.login} expired")
+                log.info(f"session for {self.context.samoware_login} expired")
                 await self.session_has_expired()
+                self.db.remove_client(self.context.telegram_id)
                 break
             except Exception as error:
                 log.exception("exception in client_handler: " + str(error))
                 log.info(
-                    f"retry_count={retry_count}. Retrying longpolling for {polling_context.login} in {LONGPOLL_RETRY_DELAY_SEC} seconds..."
+                    f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {LONGPOLL_RETRY_DELAY_SEC} seconds..."
                 )
                 retry_count += 1
                 await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
 
-        http_session.close()
-        log.info(f"longpolling for {polling_context.login} stopped")
+        await http_session.close()
+        log.info(f"longpolling for {self.context.samoware_login} stopped")
 
     async def can_not_revalidate(self):
         await self.message_sender(
@@ -160,16 +162,16 @@ class ClientHandler:
 
     async def forward_mail(self, mail: Mail):
         from_str = (
-            f'<a href="copy-this-mail.example/{mail.from_mail}">{mail.from_name}</a>'
+            f'<a href="copy-this-mail.example/{mail.header.from_mail}">{mail.header.from_name}</a>'
         )
         to_str = ", ".join(
             f'<a href="copy-this-mail.example/{recipient[0]}">{recipient[1]}</a>'
             for recipient in mail.header.recipients
         )
 
-        mail_text = f'{mail.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n<b>{mail.subject}</b>\n\n{mail.text}'
+        mail_text = f'{mail.header.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n<b>{mail.header.subject}</b>\n\n{mail.body.text}'
 
-        self.message_sender(
+        await self.message_sender(
             self.context.telegram_id,
             mail_text,
             HTML_FORMAT,
