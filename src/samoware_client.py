@@ -320,7 +320,7 @@ def getInboxUpdates(context: SamowareContext) -> list:
                 mail["from_name"] = element.find("E-From").text
             subjectExists = element.find("Subject") is not None
             subjectTextExists = element.find("Subject").text is not None
-            if subjectTextExists and subjectTextExists:
+            if subjectExists and subjectTextExists:
                 mail["subject"] = html.escape(element.find("Subject").text)
             else:
                 mail["subject"] = "Письмо без темы"
