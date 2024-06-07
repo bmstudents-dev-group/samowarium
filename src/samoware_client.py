@@ -360,7 +360,7 @@ def setSessionInfo(context: SamowareContext) -> None:
         cookies=response.cookies,
         timeout=HTTP_COMMON_TIMEOUT_SEC,
     )
-    context.cookies = response.cookies
+    context.cookies = response.cookies.get_dict()
 
 
 def htmlElementToText(element):
