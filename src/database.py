@@ -17,7 +17,7 @@ db = sqlite3.connect(DB_PATH, check_same_thread=False)
 def map_context_to_dict(context: SamowareContext) -> dict:
     try:
         cookies = context.cookies.get_dict()
-    except:
+    except Exception as _:
         cookies = context.cookies
 
     return {
@@ -98,7 +98,7 @@ def getAllClients() -> list:
         (telegram_id, context) = client
         try:
             return (telegram_id, map_context_from_dict(json.loads(context)))
-        except:
+        except Exception as _:
             return (telegram_id, pickle.loads(context))
 
     return list(
