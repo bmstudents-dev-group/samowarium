@@ -173,7 +173,9 @@ def get_new_mails(
         log.error(
             f"received non 200 code in getInboxUpdates: {response.status_code}. response: {response.text}"
         )
-        raise HTTPError(url=url, code=response.status_code, msg=response.text, hdrs=None)
+        raise HTTPError(
+            url=url, code=response.status_code, msg=response.text, hdrs=None
+        )
     tree = ET.fromstring(response.text)
     mail_headers = []
     for element in tree.findall("folderReport"):
@@ -277,7 +279,9 @@ def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
         log.error(
             f"received non 200 code in openInbox: {response.status_code}. response: {response.text}"
         )
-        raise HTTPError(url=url, code=response.status_code, msg=response.text, hdrs=None)
+        raise HTTPError(
+            url=url, code=response.status_code, msg=response.text, hdrs=None
+        )
 
     return context.make_next(
         request_id=context.request_id + 1,
@@ -302,7 +306,9 @@ def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> MailBody:
         log.error(
             f"received non 200 code in getMailBodyById: {response.status_code}\nresponse: {response.text}"
         )
-        raise HTTPError(url=url, code=response.status_code, msg=response.text, hdrs=None)
+        raise HTTPError(
+            url=url, code=response.status_code, msg=response.text, hdrs=None
+        )
     tree = bs.BeautifulSoup(response.text, "html.parser")
     mailBodiesHtml = tree.findAll("div", {"class": "samoware-RFC822-body"})
 
