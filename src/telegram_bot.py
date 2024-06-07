@@ -3,7 +3,7 @@ from telegram import Update, InputMediaDocument
 import telegram
 from telegram.ext import Application, CommandHandler, ContextTypes
 import logging as log
-from typing import Callable, Awaitable, Optional
+from typing import Optional
 import asyncio
 from client_handler import ClientHandler
 from const import TELEGRAM_SEND_RETRY_DELAY_SEC
