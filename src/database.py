@@ -69,7 +69,6 @@ def addClient(telegram_id: int, context: SamowareContext) -> None:
 
 def setSamowareContext(telegram_id: int, context: SamowareContext) -> None:
     context_encoded = json.dumps(map_context_to_dict(context))
-    context
     db.execute(
         "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
         (context_encoded, telegram_id),
