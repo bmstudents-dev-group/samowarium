@@ -8,6 +8,8 @@ on:
     branches:
       - main
 
+permissions: write-all
+
 jobs:
   run-linters:
     name: Run linters
@@ -28,9 +30,9 @@ jobs:
       - name: Run linters
         uses: wearerequired/lint-action@v2
         with:
-          auto_fix: false
+          auto_fix: true
           black: true
           black_auto_fix: false
-          flake8_args: "--ignore=E501,W504" # too long lines ignore
+          flake8_args: "--ignore=E501,E203,W503" # too long lines ignore, whitespace before :, newline before operator
           flake8: true
           flake8_auto_fix: false

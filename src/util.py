@@ -1,7 +1,6 @@
 from http.client import HTTPResponse
 import os
 from typing import Awaitable, Callable, Optional
-import asyncio
 
 MessageSender = Callable[
     [int, str, str, Optional[list[tuple[HTTPResponse, str]]]], Awaitable[None]
