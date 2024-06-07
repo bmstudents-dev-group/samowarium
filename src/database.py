@@ -1,59 +1,38 @@
-import datetime
 import logging as log
 from sqlite3 import connect
 from json import dumps, loads
 from typing import Self
+
+import dateutil
 from samoware_api import SamowarePollingContext
-from util import make_dir_if_not_exist
 from context import Context
 
 
-class RawContext:
-    def __init__(
-        self,
-        login: str,
-        session: str,
-        request_id: int,
-        command_id: int,
-        rand: int,
-        ackSeq: int,
-        last_revalidate: datetime,
-        cookies: dict,
-    ):
-        self.login = login
-        self.session = session
-        self.request_id = request_id
-        self.command_id = command_id
-        self.rand = rand
-        self.ackSeq = ackSeq  # saving backward compability
-        self.last_revalidate = last_revalidate
-        self.cookies = cookies
+def map_context_to_dict(context: Context) -> dict:
+    return {
+        "login": context.samoware_login,
+        "ack_seq": context.polling_context.ack_seq,
+        "command_id": context.polling_context.command_id,
+        "cookies": context.polling_context.cookies,
+        "last_revalidate": context.last_revalidate.isoformat(),
+        "request_id": context.polling_context.request_id,
+        "session": context.polling_context.session,
+        "rand": context.polling_context.rand,
+    }
 
 
-def map_context_to_raw(context: Context) -> RawContext:
-    return RawContext(
-        login=context.samoware_login,
-        session=context.polling_context.session,
-        request_id=context.polling_context.request_id,
-        command_id=context.polling_context.command_id,
-        rand=context.polling_context.rand,
-        ackSeq=context.polling_context.ack_seq,
-        last_revalidate=context.last_revalidate,
-        cookies=context.polling_context.cookies,
-    )
-
-
-def map_raw_to_context(raw: RawContext, telegram_id: int) -> Context:
+def map_context_from_dict(d: dict, telegram_id: int) -> Context:
     return Context(
         polling_context=SamowarePollingContext(
-            ack_seq=raw.ackSeq,
-            command_id=raw.command_id,
-            cookies=raw.cookies,
-            rand=raw.rand,
-            session=raw.session,
+            ack_seq=d["ack_seq"],
+            command_id=d["command_id"],
+            cookies=d["cookies"],
+            rand=d["rand"],
+            session=d["session"],
+            request_id=d["request_id"],
         ),
-        last_revalidation=raw.last_revalidate,
-        samoware_login=raw.login,
+        last_revalidation=dateutil.parser.isoparse(d["last_revalidate"]),
+        samoware_login=d["login"],
         telegram_id=telegram_id,
     )
 
@@ -85,7 +64,7 @@ class Database:
         log.info("database was closed")
 
     def add_client(self, telegram_id: int, context: Context) -> None:
-        context_encoded = dumps(map_context_to_raw(context))
+        context_encoded = dumps(map_context_to_dict(context))
         self.connection.execute(
             "INSERT INTO clients VALUES(?, ?)",
             (telegram_id, context_encoded),
@@ -95,7 +74,7 @@ class Database:
 
     def set_handler_context(self, context: Context) -> None:
         telegram_id = context.telegram_id
-        context_encoded = dumps(map_context_to_raw(context))
+        context_encoded = dumps(map_context_to_dict(context))
         self.connection.execute(
             "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
             (context_encoded, telegram_id),
@@ -114,7 +93,7 @@ class Database:
             )
             return None
         (context_encoded,) = row
-        raw_context = map_raw_to_context(loads(context_encoded), telegram_id)
+        raw_context = map_context_from_dict(loads(context_encoded), telegram_id)
         log.debug(f"requested samoware context for the client {telegram_id}")
         return raw_context
 
@@ -131,7 +110,7 @@ class Database:
     def get_all_clients(self) -> list[tuple[int, Context]]:
         def map_client_from_tuple(client):
             (telegram_id, context) = client
-            return (telegram_id, map_raw_to_context(loads(context), telegram_id))
+            return (telegram_id, map_context_from_dict(loads(context), telegram_id))
 
         clients = list(
             map(
