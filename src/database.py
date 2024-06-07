@@ -1,5 +1,4 @@
 import sqlite3
-import pickle
 import json
 import dateutil.parser
 import util
@@ -15,16 +14,11 @@ db = sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
 def map_context_to_dict(context: SamowareContext) -> dict:
-    try:
-        cookies = context.cookies.get_dict()
-    except Exception as _:
-        cookies = context.cookies
-
     return {
         "login": context.login,
         "ack_seq": context.ackSeq,
         "command_id": context.command_id,
-        "cookies": cookies,
+        "cookies": context.cookies,
         "last_revalidate": context.last_revalidate.isoformat(),
         "request_id": context.request_id,
         "session": context.session,
@@ -49,8 +43,6 @@ def initDB():
     db.execute(
         "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
     )
-    for telegram_id, context in getAllClients():
-        setSamowareContext(telegram_id, context)
     logging.info("db was initialized")
 
 
@@ -95,10 +87,7 @@ def isClientActive(telegram_id: int) -> bool:
 def getAllClients() -> list:
     def mapClient(client):
         (telegram_id, context) = client
-        try:
-            return (telegram_id, map_context_from_dict(json.loads(context)))
-        except Exception as _:
-            return (telegram_id, pickle.loads(context))
+        return (telegram_id, map_context_from_dict(json.loads(context)))
 
     return list(
         map(
