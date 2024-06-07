@@ -3,7 +3,7 @@ from sqlite3 import connect
 from json import dumps, loads
 from typing import Self
 
-import dateutil
+import dateutil.parser
 from samoware_api import SamowarePollingContext
 from context import Context
 

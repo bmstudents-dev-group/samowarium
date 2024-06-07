@@ -62,8 +62,8 @@ class MailHeader:
         self,
         uid: str,
         flags: str,
-        local_time: str,
-        utc_time: str,
+        local_time: datetime,
+        utc_time: datetime,
         recipients: tuple[str, str],
         from_mail: str,
         from_name: str,
@@ -111,7 +111,7 @@ def login(login: str, password: str) -> SamowarePollingContext | None:
 def revalidate(login: str, session: str) -> SamowarePollingContext | None:
     log.debug(f"revalidating session for {login}")
     response = requests.get(
-        url=f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}&killOld=1",
+        url=f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}",
     )
 
     tree = ET.fromstring(response.text)
@@ -138,15 +138,15 @@ async def longpoll_updates(
         f"samoware longpoll response code: {response.status}, text: {response_text}"
     )
     if response.status == 550:
-        log.error(
-            f"received 550 code in longPollUpdates - Samoware Unauthorized\nresponse: {response_text}"
+        log.warning(
+            f"received 550 code in longPollUpdates - Samoware Unauthorized. response: {response_text}"
         )
         raise UnauthorizedError
     if response.status != 200:
         log.error(
-            f"received non 200 code in longPollUpdates: {response.status}\nresponse: {response_text}"
+            f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
         )
-        raise HTTPError(url=url, code=response.status_code, msg=response.text)
+        raise HTTPError(url=url, code=response.status, msg=await response.text())
     tree = ET.fromstring(response_text)
     ack_seq = context.ack_seq
     if "respSeq" in tree.attrib:
@@ -165,15 +165,15 @@ def get_new_mails(
         timeout=HTTP_COMMON_TIMEOUT_SEC,
     )
     if response.status_code == 550:
-        log.error(
-            f"received 550 code in getInboxUpdates - Samoware Unauthorized\nresponse: {response.text}"
+        log.warning(
+            f"received 550 code in getInboxUpdates - Samoware Unauthorized. response: {response.text}"
         )
         raise UnauthorizedError
     if response.status_code != 200:
         log.error(
-            f"received non 200 code in getInboxUpdates: {response.status_code}\nresponse: {response.text}"
+            f"received non 200 code in getInboxUpdates: {response.status_code}. response: {response.text}"
         )
-        raise HTTPError(url=url, code=response.status_code, msg=response.text)
+        raise HTTPError(url=url, code=response.status_code, msg=response.text, hdrs=None)
     tree = ET.fromstring(response.text)
     mail_headers = []
     for element in tree.findall("folderReport"):
@@ -270,14 +270,14 @@ def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
     )
     if response.status_code == 550:
         log.error(
-            f"received 550 code in openInbox - Samoware Unauthorized\nresponse: {response.text}"
+            f"received 550 code in openInbox - Samoware Unauthorized. response: {response.text}"
         )
         raise UnauthorizedError
     if response.status_code != 200:
         log.error(
-            f"received non 200 code in openInbox: {response.status_code}\nresponse: {response.text}"
+            f"received non 200 code in openInbox: {response.status_code}. response: {response.text}"
         )
-        raise HTTPError(url=url, code=response.status_code, msg=response.text)
+        raise HTTPError(url=url, code=response.status_code, msg=response.text, hdrs=None)
 
     return context.make_next(
         request_id=context.request_id + 1,
@@ -286,7 +286,7 @@ def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
     )
 
 
-def get_mail_body_by_id(context: SamowarePollingContext, uid: int) -> MailBody:
+def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> MailBody:
     url = f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}"
     response = requests.get(
         url=url,
@@ -302,7 +302,7 @@ def get_mail_body_by_id(context: SamowarePollingContext, uid: int) -> MailBody:
         log.error(
             f"received non 200 code in getMailBodyById: {response.status_code}\nresponse: {response.text}"
         )
-        raise HTTPError(url=url, code=response.status_code, msg=response.text)
+        raise HTTPError(url=url, code=response.status_code, msg=response.text, hdrs=None)
     tree = bs.BeautifulSoup(response.text, "html.parser")
     mailBodiesHtml = tree.findAll("div", {"class": "samoware-RFC822-body"})
 

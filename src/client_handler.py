@@ -1,6 +1,6 @@
 import asyncio
 import logging as log
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 from typing import Self
 
@@ -44,7 +44,9 @@ class ClientHandler:
         self.db = db
         self.context = context
 
+    @classmethod
     async def make_new(
+        cls,
         telegram_id: int,
         samoware_login: str,
         samoware_password: str,
@@ -67,9 +69,10 @@ class ClientHandler:
         await message_sender(telegram_id, SUCCESSFUL_LOGIN, MARKDOWN_FORMAT)
         return ClientHandler(message_sender, db, context)
 
+    @classmethod
     async def make_from_context(
-        context: Context, message_sender: MessageSender, db: Database
-    ) -> Self | None:
+        cls, context: Context, message_sender: MessageSender, db: Database
+    ) -> Self:
         return ClientHandler(message_sender, db, context)
 
     async def start_handling(self) -> asyncio.Task:
@@ -85,65 +88,73 @@ class ClientHandler:
         await asyncio.wait([self.polling_task])
 
     async def polling(self) -> None:
-        http_session = ClientSession(
-            timeout=ClientTimeout(
-                connect=HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
-                total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
+        try:
+            http_session = ClientSession(
+                timeout=ClientTimeout(
+                    connect=HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
+                    total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
+                )
             )
-        )
 
-        retry_count = 0
-        polling_context = self.context.polling_context
-        log.info(f"longpolling for {self.context.samoware_login} is started")
+            retry_count = 0
+            polling_context = self.context.polling_context
+            log.info(f"longpolling for {self.context.samoware_login} is started")
 
-        while self.db.is_client_active(self.context.telegram_id):
-            try:
-                self.db.set_handler_context(self.context)
-                (polling_result, polling_context) = await samoware_api.longpoll_updates(
-                    polling_context, http_session
-                )
-                if samoware_api.has_updates(polling_result):
-                    (mails, polling_context) = samoware_api.get_new_mails(
-                        polling_context
+            while self.db.is_client_active(self.context.telegram_id):
+                try:
+                    self.db.set_handler_context(self.context)
+                    (polling_result, polling_context) = (
+                        await samoware_api.longpoll_updates(
+                            polling_context, http_session
+                        )
                     )
-                    for mail_header in mails:
-                        log.info(f"new mail for {self.context.telegram_id}")
-                        log.debug(f"email flags: {mail_header.flags}")
-                        mail_body = samoware_api.get_mail_body_by_id(
-                            polling_context, mail_header.uid
+                    if samoware_api.has_updates(polling_result):
+                        (mails, polling_context) = samoware_api.get_new_mails(
+                            polling_context
                         )
-                        await self.forward_mail(Mail(mail_header, mail_body))
-                if self.context.last_revalidate + REVALIDATE_INTERVAL < datetime.now():
-                    new_context = samoware_api.revalidate(polling_context)
-                    if new_context is None:
-                        log.warning(
-                            f"can not revalidate session for user {self.context.telegram_id} {self.context.samoware_login}"
+                        for mail_header in mails:
+                            log.info(f"new mail for {self.context.telegram_id}")
+                            log.debug(f"email flags: {mail_header.flags}")
+                            mail_body = samoware_api.get_mail_body_by_id(
+                                polling_context, mail_header.uid
+                            )
+                            await self.forward_mail(Mail(mail_header, mail_body))
+                    if datetime.astimezone(
+                        self.context.last_revalidate + REVALIDATE_INTERVAL, timezone.utc
+                    ) < datetime.now(timezone.utc):
+                        new_context = samoware_api.revalidate(
+                            self.context.samoware_login, polling_context.session
                         )
-                        await self.can_not_revalidate()
-                        break
-                    polling_context = new_context
-                    polling_context = samoware_api.set_session_info(polling_context)
-                    polling_context = samoware_api.open_inbox(polling_context)
-                    self.context.last_revalidate = datetime.now()
-                retry_count = 0
-                self.context.polling_context = polling_context
-            except asyncio.CancelledError:
-                break
-            except UnauthorizedError:
-                log.info(f"session for {self.context.samoware_login} expired")
-                await self.session_has_expired()
-                self.db.remove_client(self.context.telegram_id)
-                break
-            except Exception as error:
-                log.exception("exception in client_handler: " + str(error))
-                log.info(
-                    f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {LONGPOLL_RETRY_DELAY_SEC} seconds..."
-                )
-                retry_count += 1
-                await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
-
-        await http_session.close()
-        log.info(f"longpolling for {self.context.samoware_login} stopped")
+                        if new_context is None:
+                            log.warning(
+                                f"can not revalidate session for user {self.context.telegram_id} {self.context.samoware_login}"
+                            )
+                            await self.can_not_revalidate()
+                            return
+                        polling_context = new_context
+                        polling_context = samoware_api.set_session_info(polling_context)
+                        polling_context = samoware_api.open_inbox(polling_context)
+                        self.context.last_revalidate = datetime.now(timezone.utc)
+                        self.db.set_handler_context(self.context)
+                    retry_count = 0
+                    self.context.polling_context = polling_context
+                except asyncio.CancelledError:
+                    return
+                except UnauthorizedError:
+                    log.info(f"session for {self.context.samoware_login} expired")
+                    await self.session_has_expired()
+                    self.db.remove_client(self.context.telegram_id)
+                    return
+                except Exception as error:
+                    log.exception("exception in client_handler: " + str(error))
+                    log.info(
+                        f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {LONGPOLL_RETRY_DELAY_SEC} seconds..."
+                    )
+                    retry_count += 1
+                    await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
+        finally:
+            await http_session.close()
+            log.info(f"longpolling for {self.context.samoware_login} stopped")
 
     async def can_not_revalidate(self):
         await self.message_sender(
@@ -166,7 +177,7 @@ class ClientHandler:
             for recipient in mail.header.recipients
         )
 
-        mail_text = f'{mail.header.local_time.strftime("%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n<b>{mail.header.subject}</b>\n\n{mail.body.text}'
+        mail_text = f'{datetime.strftime(mail.header.local_time, "%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n<b>{mail.header.subject}</b>\n\n{mail.body.text}'
 
         await self.message_sender(
             self.context.telegram_id,

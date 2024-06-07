@@ -43,7 +43,7 @@ class TelegramBot:
             ("login", self.login_command),
             ("about", self.about_command),
         ]
-        self.handlers = []
+        self.handlers: list[ClientHandler] = []
 
     async def start_bot(self) -> None:
         log.info("starting the bot...")
@@ -97,7 +97,7 @@ class TelegramBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         log.debug(f"received /login from {update.effective_user.id}")
-        if len(context.args) != 2:
+        if context.args is None or len(context.args) != 2:
             log.debug(
                 f"client {update.effective_user.id} entered login and password in wrong format"
             )

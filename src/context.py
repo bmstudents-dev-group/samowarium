@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from samoware_api import SamowarePollingContext
 
 
@@ -17,4 +17,4 @@ class Context:
             self.polling_context = SamowarePollingContext()
         self.last_revalidate = last_revalidation
         if self.last_revalidate is None:
-            self.last_revalidate = datetime.now()
+            self.last_revalidate = datetime.now(timezone.utc)
