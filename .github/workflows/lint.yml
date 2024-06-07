@@ -31,6 +31,6 @@ jobs:
           auto_fix: false
           black: true
           black_auto_fix: false
-          flake8_args: "--ignore=E501" # too long lines ignore
+          flake8_args: "--ignore=E501,W504" # too long lines ignore
           flake8: true
           flake8_auto_fix: false
