@@ -193,8 +193,8 @@ def get_new_mails(
             else:
                 from_name = element.find("E-From").text
             if (
-                element.find("Subject") is not None and
-                element.find("Subject").text is not None
+                element.find("Subject") is not None
+                and element.find("Subject").text is not None
             ):
                 subject = html.escape(element.find("Subject").text)
             else:

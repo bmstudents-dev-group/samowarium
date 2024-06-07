@@ -52,7 +52,9 @@ class ClientHandler:
         db: Database,
     ) -> Self | None:
         if db.is_client_active(telegram_id):
-            await message_sender(telegram_id, HANDLER_IS_ALREADY_WORKED, MARKDOWN_FORMAT)
+            await message_sender(
+                telegram_id, HANDLER_IS_ALREADY_WORKED, MARKDOWN_FORMAT
+            )
             return None
         polling_context = samoware_api.login(samoware_login, samoware_password)
         if polling_context is None:
@@ -111,10 +113,7 @@ class ClientHandler:
                             polling_context, mail_header.uid
                         )
                         await self.forward_mail(Mail(mail_header, mail_body))
-                if (
-                    self.context.last_revalidate + REVALIDATE_INTERVAL
-                    < datetime.now()
-                ):
+                if self.context.last_revalidate + REVALIDATE_INTERVAL < datetime.now():
                     new_context = samoware_api.revalidate(polling_context)
                     if new_context is None:
                         log.warning(
@@ -161,9 +160,7 @@ class ClientHandler:
         )
 
     async def forward_mail(self, mail: Mail):
-        from_str = (
-            f'<a href="copy-this-mail.example/{mail.header.from_mail}">{mail.header.from_name}</a>'
-        )
+        from_str = f'<a href="copy-this-mail.example/{mail.header.from_mail}">{mail.header.from_name}</a>'
         to_str = ", ".join(
             f'<a href="copy-this-mail.example/{recipient[0]}">{recipient[1]}</a>'
             for recipient in mail.header.recipients
