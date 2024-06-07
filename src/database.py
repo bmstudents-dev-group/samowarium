@@ -1,5 +1,7 @@
 import sqlite3
 import pickle
+import json
+import dateutil.parser
 import util
 import logging
 
@@ -12,10 +14,43 @@ util.makeDirIfNotExist(DB_FOLDER_PATH)
 db = sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
+def map_context_to_dict(context: SamowareContext) -> dict:
+    try:
+        cookies = context.cookies.get_dict()
+    except Exception as _:
+        cookies = context.cookies
+
+    return {
+        "login": context.login,
+        "ack_seq": context.ackSeq,
+        "command_id": context.command_id,
+        "cookies": cookies,
+        "last_revalidate": context.last_revalidate.isoformat(),
+        "request_id": context.request_id,
+        "session": context.session,
+        "rand": context.rand,
+    }
+
+
+def map_context_from_dict(d: dict) -> SamowareContext:
+    return SamowareContext(
+        login=d["login"],
+        session=d["session"],
+        request_id=d["request_id"],
+        command_id=d["command_id"],
+        rand=d["rand"],
+        ackSeq=d["ack_seq"],
+        last_revalidate=dateutil.parser.isoparse(d["last_revalidate"]),
+        cookies=d["cookies"],
+    )
+
+
 def initDB():
     db.execute(
         "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
     )
+    for telegram_id, context in getAllClients():
+        setSamowareContext(telegram_id, context)
     logging.info("db was initialized")
 
 
@@ -24,7 +59,7 @@ def closeConnection():
 
 
 def addClient(telegram_id: int, context: SamowareContext) -> None:
-    context_encoded = pickle.dumps(context)
+    context_encoded = json.dumps(map_context_to_dict(context))
     db.execute(
         "INSERT INTO clients VALUES(?, ?)",
         (telegram_id, context_encoded),
@@ -33,7 +68,7 @@ def addClient(telegram_id: int, context: SamowareContext) -> None:
 
 
 def setSamowareContext(telegram_id: int, context: SamowareContext) -> None:
-    context_encoded = pickle.dumps(context)
+    context_encoded = json.dumps(map_context_to_dict(context))
     db.execute(
         "UPDATE clients SET samoware_context=? WHERE telegram_id=?",
         (context_encoded, telegram_id),
@@ -46,7 +81,7 @@ def getSamowareContext(telegram_id: int) -> SamowareContext:
         "SELECT samoware_context FROM clients WHERE telegram_id=?",
         (telegram_id,),
     ).fetchone()
-    context = pickle.loads(context_encoded[0])
+    context = map_context_from_dict(json.loads(context_encoded[0]))
     return context
 
 
@@ -60,7 +95,10 @@ def isClientActive(telegram_id: int) -> bool:
 def getAllClients() -> list:
     def mapClient(client):
         (telegram_id, context) = client
-        return (telegram_id, pickle.loads(context))
+        try:
+            return (telegram_id, map_context_from_dict(json.loads(context)))
+        except Exception as _:
+            return (telegram_id, pickle.loads(context))
 
     return list(
         map(
