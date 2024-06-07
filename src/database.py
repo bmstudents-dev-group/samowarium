@@ -29,7 +29,7 @@ def map_context_to_dict(context: SamowareContext) -> dict:
         "last_revalidate": context.last_revalidate.isoformat(),
         "request_id": context.request_id,
         "session": context.session,
-        "rand": context.rand
+        "rand": context.rand,
     }
 
 
