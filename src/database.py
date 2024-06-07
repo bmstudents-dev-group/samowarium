@@ -7,7 +7,6 @@ import logging
 
 from samoware_client import SamowareContext
 
-
 DB_FOLDER_PATH = "db"
 DB_PATH = f"{DB_FOLDER_PATH}/database.db"
 util.makeDirIfNotExist(DB_FOLDER_PATH)
