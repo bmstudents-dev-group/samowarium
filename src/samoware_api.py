@@ -250,11 +250,11 @@ def set_session_info(context: SamowarePollingContext) -> SamowarePollingContext:
             ),
             ("session", (None, context.session)),
         ),
-        cookies=response.cookies.get_dict(),
+        cookies=response.cookies,
         timeout=HTTP_COMMON_TIMEOUT_SEC,
     )
     return context.make_next(
-        cookies=response.cookies,
+        cookies=response.cookies.get_dict(),
         request_id=context.request_id + 1,
         rand=context.rand + 1,
     )
