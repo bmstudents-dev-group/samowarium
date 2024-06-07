@@ -1,7 +1,7 @@
 import datetime
 import logging as log
 from sqlite3 import connect
-from pickle import dumps, loads
+from json import dumps, loads
 from typing import Self
 from samoware_api import SamowarePollingContext
 from util import make_dir_if_not_exist
@@ -71,7 +71,6 @@ class Database:
 
     def initialize(self) -> None:
         log.debug("initializing db...")
-        make_dir_if_not_exist(self.path)
         self.connection = connect(self.path, check_same_thread=False)
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
