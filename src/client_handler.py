@@ -5,6 +5,7 @@ import re
 from typing import Self
 
 from aiohttp import ClientSession, ClientTimeout
+import aiohttp
 from context import Context
 
 from const import (
@@ -144,6 +145,17 @@ class ClientHandler:
                     await self.session_has_expired()
                     self.db.remove_client(self.context.telegram_id)
                     break
+                except (
+                    aiohttp.ClientOSError
+                ) as error:  # unknown source error https://github.com/aio-libs/aiohttp/issues/6912
+                    log.warning(
+                        f"ClientOSError. Probably Broken pipe. Retrying in {LONGPOLL_RETRY_DELAY_SEC} seconds. {str(error)}"
+                    )
+                    log.info(
+                        f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {LONGPOLL_RETRY_DELAY_SEC} seconds..."
+                    )
+                    retry_count += 1
+                    await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
                 except Exception as error:
                     log.exception("exception in client_handler: " + str(error))
                     log.info(
