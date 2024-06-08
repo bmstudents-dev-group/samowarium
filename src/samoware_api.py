@@ -183,8 +183,8 @@ def get_new_mails(
     mail_headers = []
     for element in tree.findall("folderReport"):
         log.debug("folderReport: " + str(ET.tostring(element, encoding="utf8")))
-        uid = element.attrib["UID"]
         if element.attrib["mode"] == "added":
+            uid = element.attrib["UID"]
             local_time = datetime.strptime(
                 element.find("INTERNALDATE").attrib["localTime"], "%Y%m%dT%H%M%S"
             )
@@ -213,18 +213,18 @@ def get_new_mails(
                     to_name = el.text
                 to.append((to_mail, to_name))
 
-        mail_headers.append(
-            MailHeader(
-                flags=flags,
-                from_mail=from_mail,
-                from_name=from_name,
-                local_time=local_time,
-                subject=subject,
-                recipients=to,
-                uid=uid,
-                utc_time=utc_time,
+            mail_headers.append(
+                MailHeader(
+                    flags=flags,
+                    from_mail=from_mail,
+                    from_name=from_name,
+                    local_time=local_time,
+                    subject=subject,
+                    recipients=to,
+                    uid=uid,
+                    utc_time=utc_time,
+                )
             )
-        )
     return (
         mail_headers,
         context.make_next(
