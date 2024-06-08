@@ -129,29 +129,29 @@ async def longpoll_updates(
     context: SamowarePollingContext, http_session: ClientSession
 ) -> tuple[str, SamowarePollingContext]:
     url = f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ack_seq}&maxWait=20&random={context.rand}"
-    response = await http_session.get(
+    async with http_session.get(
         url=url,
         cookies=context.cookies,
-    )
-    response_text = await response.text()
-    log.debug(
-        f"samoware longpoll response code: {response.status}, text: {response_text}"
-    )
-    if response.status == 550:
-        log.warning(
-            f"received 550 code in longPollUpdates - Samoware Unauthorized. response: {response_text}"
+    ) as response:
+        response_text = await response.text()
+        log.debug(
+            f"samoware longpoll response code: {response.status}, text: {response_text}"
         )
-        raise UnauthorizedError
-    if response.status != 200:
-        log.error(
-            f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
-        )
-        raise HTTPError(url=url, code=response.status, msg=await response.text())
-    tree = ET.fromstring(response_text)
-    ack_seq = context.ack_seq
-    if "respSeq" in tree.attrib:
-        ack_seq = int(tree.attrib["respSeq"])
-    return (response_text, context.make_next(ack_seq=ack_seq, rand=context.rand + 1))
+        if response.status == 550:
+            log.warning(
+                f"received 550 code in longPollUpdates - Samoware Unauthorized. response: {response_text}"
+            )
+            raise UnauthorizedError
+        if response.status != 200:
+            log.error(
+                f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
+            )
+            raise HTTPError(url=url, code=response.status, msg=await response.text())
+        tree = ET.fromstring(response_text)
+        ack_seq = context.ack_seq
+        if "respSeq" in tree.attrib:
+            ack_seq = int(tree.attrib["respSeq"])
+        return (response_text, context.make_next(ack_seq=ack_seq, rand=context.rand + 1))
 
 
 def get_new_mails(

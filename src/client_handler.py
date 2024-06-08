@@ -88,14 +88,12 @@ class ClientHandler:
         await asyncio.wait([self.polling_task])
 
     async def polling(self) -> None:
-        try:
-            http_session = ClientSession(
-                timeout=ClientTimeout(
-                    connect=HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
-                    total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
-                )
+        async with ClientSession(
+            timeout=ClientTimeout(
+                connect=HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
+                total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
             )
-
+        ) as http_session:
             retry_count = 0
             polling_context = self.context.polling_context
             log.info(f"longpolling for {self.context.samoware_login} is started")
@@ -120,7 +118,8 @@ class ClientHandler:
                             )
                             await self.forward_mail(Mail(mail_header, mail_body))
                     if datetime.astimezone(
-                        self.context.last_revalidate + REVALIDATE_INTERVAL, timezone.utc
+                        self.context.last_revalidate + REVALIDATE_INTERVAL,
+                        timezone.utc,
                     ) < datetime.now(timezone.utc):
                         new_context = samoware_api.revalidate(
                             self.context.samoware_login, polling_context.session
@@ -130,7 +129,7 @@ class ClientHandler:
                                 f"can not revalidate session for user {self.context.telegram_id} {self.context.samoware_login}"
                             )
                             await self.can_not_revalidate()
-                            return
+                            break
                         polling_context = new_context
                         polling_context = samoware_api.set_session_info(polling_context)
                         polling_context = samoware_api.open_inbox(polling_context)
@@ -139,12 +138,12 @@ class ClientHandler:
                     retry_count = 0
                     self.context.polling_context = polling_context
                 except asyncio.CancelledError:
-                    return
+                    break
                 except UnauthorizedError:
                     log.info(f"session for {self.context.samoware_login} expired")
                     await self.session_has_expired()
                     self.db.remove_client(self.context.telegram_id)
-                    return
+                    break
                 except Exception as error:
                     log.exception("exception in client_handler: " + str(error))
                     log.info(
@@ -152,8 +151,6 @@ class ClientHandler:
                     )
                     retry_count += 1
                     await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
-        finally:
-            await http_session.close()
             log.info(f"longpolling for {self.context.samoware_login} stopped")
 
     async def can_not_revalidate(self):
