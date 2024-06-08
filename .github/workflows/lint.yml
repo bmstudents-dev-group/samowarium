@@ -33,6 +33,6 @@ jobs:
           auto_fix: true
           black: true
           black_auto_fix: true
-          flake8_args: "--ignore=E501" # too long lines ignore
+          flake8_args: "--ignore=E501,E203,W503" # too long lines ignore, whitespace before :, newline before operator
           flake8: true
-          flake8_auto_fix: true
+          flake8_auto_fix: false
