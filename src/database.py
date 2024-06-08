@@ -6,6 +6,7 @@ from typing import Self
 import dateutil.parser
 from samoware_api import SamowarePollingContext
 from context import Context
+import util
 
 
 def map_context_to_dict(context: Context) -> dict:
@@ -51,10 +52,9 @@ class Database:
     def initialize(self) -> None:
         log.debug("initializing db...")
         self.connection = connect(self.path, check_same_thread=False)
-        self.connection.execute(
-            "CREATE TABLE IF NOT EXISTS clients(telegram_id PRIMARY KEY, samoware_context)"
-        )
-        log.info("db was initialized")
+        log.debug("running migrations...")
+        util.run_migrations()
+        log.info("db has initialized")
 
     def close(self) -> None:
         log.debug("trying to close database")
