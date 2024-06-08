@@ -151,7 +151,10 @@ async def longpoll_updates(
         ack_seq = context.ack_seq
         if "respSeq" in tree.attrib:
             ack_seq = int(tree.attrib["respSeq"])
-        return (response_text, context.make_next(ack_seq=ack_seq, rand=context.rand + 1))
+        return (
+            response_text,
+            context.make_next(ack_seq=ack_seq, rand=context.rand + 1),
+        )
 
 
 def get_new_mails(
