@@ -6,9 +6,13 @@
 
 - Переименовать `.env.example` -> `.env` и выставить токен для бота.
 
+- Использовать python3.11 и выше. 
+
 - Установить зависимости:
 
 ```bash
+# если используется другая версия python, то установить соответствующий пакет
+apt-get update && apt-get install python3.11-dev
 pip install -r requirements.txt
 ```
 
