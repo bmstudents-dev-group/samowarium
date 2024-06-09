@@ -2,8 +2,8 @@ import logging as log
 from sqlite3 import connect
 from json import dumps, loads
 from typing import Self
-
 import dateutil.parser
+from encryption import Encrypter
 from samoware_api import SamowarePollingContext
 from context import Context
 import util
@@ -52,7 +52,7 @@ class Database:
     def initialize(self) -> None:
         log.debug("initializing db...")
         self.connection = connect(self.path, check_same_thread=False)
-        log.debug("running migrations...")
+        self.encrypter = Encrypter()
         util.run_migrations()
         log.info("db has initialized")
 
@@ -65,12 +65,21 @@ class Database:
 
     def add_client(self, telegram_id: int, context: Context) -> None:
         context_encoded = dumps(map_context_to_dict(context))
+
         self.connection.execute(
-            "INSERT INTO clients VALUES(?, ?)",
-            (telegram_id, context_encoded),
+            "INSERT INTO clients VALUES(?, ?, ?)",
+            (telegram_id, context_encoded, None),
         )
         self.connection.commit()
         log.debug(f"client {telegram_id} has inserted")
+
+    def set_password(self, telegram_id: int, password: str) -> None:
+        self.connection.execute(
+            "UPDATE clients SET password=? WHERE telegram_id=?",
+            (self.encrypter.encrypt(password), telegram_id),
+        )
+        self.connection.commit()
+        log.debug(f"set password for the client {telegram_id}")
 
     def set_handler_context(self, context: Context) -> None:
         telegram_id = context.telegram_id
@@ -97,6 +106,13 @@ class Database:
         log.debug(f"requested samoware context for the client {telegram_id}")
         return raw_context
 
+    def get_password(self, telegram_id: int) -> str | None:
+        row = self.connection.execute(
+            "SELECT password FROM clients WHERE telegram_id=?", (telegram_id,)
+        ).fetchone()
+        log.debug(f"requested password for the client {telegram_id}")
+        return row[0] if row is not None else None
+
     def is_client_active(self, telegram_id: int) -> bool:
         is_active = (
             self.connection.execute(
@@ -107,16 +123,21 @@ class Database:
         log.debug(f"client {telegram_id} is active: {is_active}")
         return is_active
 
-    def get_all_clients(self) -> list[tuple[int, Context]]:
+    def get_all_clients(self) -> list[tuple[int, Context, str | None]]:
         def map_client_from_tuple(client):
-            (telegram_id, context) = client
-            return (telegram_id, map_context_from_dict(loads(context), telegram_id))
+            (telegram_id, context, password) = client
+            return (
+                telegram_id,
+                map_context_from_dict(
+                    loads(context), telegram_id, self.encrypter.decrypt(password)
+                ),
+            )
 
         clients = list(
             map(
                 map_client_from_tuple,
                 self.connection.execute(
-                    "SELECT telegram_id, samoware_context FROM clients"
+                    "SELECT telegram_id, samoware_context, password FROM clients"
                 ).fetchall(),
             )
         )
