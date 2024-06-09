@@ -6,7 +6,7 @@ WORKDIR /samowarium
 
 COPY yoyo.ini .
 
-RUN apt-get update && apt-get install python3.11-dev 
+RUN apt-get update && apt-get install -y python3.11-dev
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
