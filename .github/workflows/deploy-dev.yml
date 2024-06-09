@@ -54,7 +54,7 @@ jobs:
       run: |
         echo ENV=DEV >> .env;
         echo TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }} >> .env;
-        echo ENCRYPTION=${{ secrets.DEV_ENCRYPTION }} >> .env;
+        echo ENCRYPTION='${{ secrets.DEV_ENCRYPTION }}' >> .env;
         echo VERSION=$(git rev-parse --short HEAD) >> .env;
 
     - name: Enable DEBUG logs
