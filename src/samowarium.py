@@ -34,7 +34,7 @@ class Application:
 
 def setup_logger():
     LOGGER_LEVEL = logging.INFO
-    if env.isDebug():
+    if env.is_debug():
         LOGGER_LEVEL = logging.DEBUG
     util.make_dir_if_not_exist(LOGGER_FOLDER_PATH)
     logging.basicConfig(
