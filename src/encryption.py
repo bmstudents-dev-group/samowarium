@@ -20,10 +20,7 @@ def unpad(s):
 
 class Encrypter:
     def __init__(self) -> None:
-        if env.is_prod_profile():
-            self.encryption_key = env.get_encryption_key_and_hide()
-        else:
-            self.encryption_key = env.get_encryption_key()
+        self.encryption_key = env.get_encryption_key()
         if self.encryption_key is None:
             log.warning("encryption key does not specified: using generated key")
             self.encryption_key = Random.get_random_bytes(32)

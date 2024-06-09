@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-import subprocess
 
 load_dotenv(".env")
 
@@ -30,12 +29,6 @@ def get_telegram_token() -> str:
 
 def get_encryption_key() -> str | None:
     return os.environ.get(ENCRYPTION_KEY_VAR_NAME, default=None)
-
-
-def get_encryption_key_and_hide() -> str | None:
-    key = get_encryption_key()
-    subprocess.run(["export ", f"{ENCRYPTION_KEY_VAR_NAME}=hidden"])
-    return key
 
 
 def is_dev_profile() -> bool:
