@@ -22,6 +22,12 @@ pip install -r requirements.txt
 python3 ./src/samowarium.py
 ```
 
+- Сделать миграцию:
+
+```bash
+yoyo new -m "migration name"
+```
+
 ## Для работы с Docker
 
 - Собрать образ:

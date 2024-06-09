@@ -29,13 +29,16 @@ class Encrypter:
         log.info("encrypter initialized")
 
     def encrypt(self, data: str) -> bytes:
-        raw = str.encode(pad(data))
+        raw = str.encode(pad(data), encoding="utf-8")
         iv = Random.new().read(AES.block_size)
         cipher = AES.new(self.encryption_key, AES.MODE_CBC, iv)
         return base64.b64encode(iv + cipher.encrypt(raw))
 
-    def decrypt(self, data: bytes) -> str:
+    def decrypt(self, data: bytes) -> str | None:
         enc = base64.b64decode(data)
         iv = enc[:16]
         cipher = AES.new(self.encryption_key, AES.MODE_CBC, iv)
-        return unpad(cipher.decrypt(enc[16:]))
+        try:
+            return unpad(bytes.decode((cipher.decrypt(enc[16:])), encoding="utf-8"))
+        except:
+            return None

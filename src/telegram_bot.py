@@ -41,8 +41,10 @@ LOGIN_WRONG_FORMAT_PROMPT = (
     "Неверный формат использования команды:\n/login <i>логин</i> <i>пароль</i>"
 )
 WAIT_TO_AUTH_PROMPT = "Авторизация. Пожалуйста, подождите..."
-SAVE_PASSWORD_PROMPT = "Авторизация выполнена. Сохранить пароль? Подробнее о хранении и использовании паролей: /about"
-PASSWORD_SAVED_PROMPT = "Пароль сохранен. Удалить пароль можно при помощи команды /stop"
+SAVE_PASSWORD_PROMPT = (
+    "Сохранить пароль? Подробнее о хранении и использовании паролей: /about"
+)
+PASSWORD_SAVED_PROMPT = "Пароль сохранен."
 
 MAX_TELEGRAM_MESSAGE_LENGTH = 4096
 
@@ -76,7 +78,7 @@ class TelegramBot:
         elif command == NO_SAVE_PSW_CALLBACK:
             log.info(f"passport for user {update.effective_user.id} is not saved")
         await self.application.bot.delete_message(
-            update.effective_chat.id, update.message.id
+            update.effective_chat.id, update.callback_query.message.message_id
         )
 
     async def start_bot(self) -> None:
@@ -155,15 +157,21 @@ class TelegramBot:
                 parse_mode=MARKDOWN_FORMAT,
                 reply_markup=telegram.InlineKeyboardMarkup(
                     [
-                        telegram.InlineKeyboardButton(
-                            text="Да",
-                            callback_data=":".join(
-                                SAVE_PSW_CALLBACK, samoware_password
+                        [
+                            telegram.InlineKeyboardButton(
+                                text="Да",
+                                callback_data=":".join(
+                                    (
+                                        SAVE_PSW_CALLBACK,
+                                        samoware_password,
+                                    )
+                                ),
                             ),
-                        ),
-                        telegram.InlineKeyboardButton(
-                            text="Нет", callback_data=":".join(NO_SAVE_PSW_CALLBACK)
-                        ),
+                            telegram.InlineKeyboardButton(
+                                text="Нет",
+                                callback_data=":".join((NO_SAVE_PSW_CALLBACK,)),
+                            ),
+                        ]
                     ]
                 ),
             )

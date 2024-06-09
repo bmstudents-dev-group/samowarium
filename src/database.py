@@ -111,7 +111,7 @@ class Database:
             "SELECT password FROM clients WHERE telegram_id=?", (telegram_id,)
         ).fetchone()
         log.debug(f"requested password for the client {telegram_id}")
-        return row[0] if row is not None else None
+        return self.encrypter.decrypt(row[0]) if row is not None else None
 
     def is_client_active(self, telegram_id: int) -> bool:
         is_active = (
@@ -125,11 +125,12 @@ class Database:
 
     def get_all_clients(self) -> list[tuple[int, Context, str | None]]:
         def map_client_from_tuple(client):
-            (telegram_id, context, password) = client
+            (telegram_id, context) = client
             return (
                 telegram_id,
                 map_context_from_dict(
-                    loads(context), telegram_id, self.encrypter.decrypt(password)
+                    loads(context),
+                    telegram_id,
                 ),
             )
 
@@ -137,7 +138,7 @@ class Database:
             map(
                 map_client_from_tuple,
                 self.connection.execute(
-                    "SELECT telegram_id, samoware_context, password FROM clients"
+                    "SELECT telegram_id, samoware_context FROM clients"
                 ).fetchall(),
             )
         )

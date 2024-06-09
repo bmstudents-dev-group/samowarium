@@ -98,11 +98,11 @@ class ClientHandler:
         ) as http_session:
             try:
                 retry_count = 0
-                polling_context = self.context.polling_context
                 log.info(f"longpolling for {self.context.samoware_login} is started")
 
                 while self.db.is_client_active(self.context.telegram_id):
                     try:
+                        polling_context = self.context.polling_context
                         self.db.set_handler_context(self.context)
                         (polling_result, polling_context) = (
                             await samoware_api.longpoll_updates(
@@ -120,6 +120,7 @@ class ClientHandler:
                                     polling_context, mail_header.uid
                                 )
                                 await self.forward_mail(Mail(mail_header, mail_body))
+                        self.context.polling_context = polling_context
                         if datetime.astimezone(
                             self.context.last_revalidate + REVALIDATE_INTERVAL,
                             timezone.utc,
@@ -129,7 +130,6 @@ class ClientHandler:
                                 await self.can_not_revalidate()
                                 return
                         retry_count = 0
-                        self.context.polling_context = polling_context
                     except asyncio.CancelledError:
                         return
                     except UnauthorizedError:
@@ -137,6 +137,7 @@ class ClientHandler:
                         samoware_password = self.db.get_password(self.context.telegram_id)
                         if samoware_password is None:
                             await self.session_has_expired()
+                            self.db.remove_client(self.context.telegram_id)
                             return
                         is_successful_relogin = self.login(samoware_password)
                         if not is_successful_relogin:
@@ -146,7 +147,7 @@ class ClientHandler:
                         aiohttp.ClientOSError
                     ) as error:  # unknown source error https://github.com/aio-libs/aiohttp/issues/6912
                         log.warning(
-                            f"ClientOSError. Probably Broken pipe. Retrying in {LONGPOLL_RETRY_DELAY_SEC} seconds. {str(error)}"
+                            f"retry_count={retry_count}. ClientOSError. Probably Broken pipe. Retrying in {LONGPOLL_RETRY_DELAY_SEC} seconds. {str(error)}"
                         )
                         retry_count += 1
                         await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
