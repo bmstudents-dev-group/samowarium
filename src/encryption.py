@@ -46,5 +46,6 @@ class Encrypter:
         cipher = AES.new(self.encryption_key, AES.MODE_CBC, iv)
         try:
             return unpad(bytes.decode((cipher.decrypt(enc[16:])), encoding="utf-8"))
-        except Exception as _:
+        except Exception as e:
+            log.exception("can not decrypt data", e)
             return None
