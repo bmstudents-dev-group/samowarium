@@ -14,6 +14,7 @@ def make_dir_if_not_exist(path):
         log.debug(f"creates dir {path}")
         os.makedirs(path)
 
+
 def run_migrations():
     log.debug("running migrations...")
     subprocess.run(["yoyo", "apply", "-b"])

@@ -62,7 +62,9 @@ class ClientHandler:
                 telegram_id, HANDLER_IS_ALREADY_WORKED_PROMPT, MARKDOWN_FORMAT
             )
             return None
-        handler = ClientHandler(message_sender, db, Context(telegram_id, samoware_login))
+        handler = ClientHandler(
+            message_sender, db, Context(telegram_id, samoware_login)
+        )
         is_successful_login = handler.login(samoware_password)
         if not is_successful_login:
             await message_sender(telegram_id, WRONG_CREDS_PROMPT, MARKDOWN_FORMAT)
@@ -134,7 +136,9 @@ class ClientHandler:
                         return
                     except UnauthorizedError:
                         log.info(f"session for {self.context.samoware_login} expired")
-                        samoware_password = self.db.get_password(self.context.telegram_id)
+                        samoware_password = self.db.get_password(
+                            self.context.telegram_id
+                        )
                         if samoware_password is None:
                             await self.session_has_expired()
                             self.db.remove_client(self.context.telegram_id)
@@ -179,7 +183,7 @@ class ClientHandler:
         except Exception as e:
             log.exception("exception on login", e)
             return False
-    
+
     def revalidate(self) -> bool:
         log.debug("trying to revalidate")
         try:
@@ -187,7 +191,9 @@ class ClientHandler:
                 self.context.samoware_login, self.context.polling_context.session
             )
             if polling_context is None:
-                log.info(f"unsuccessful revalidation for user {self.context.samoware_login}")
+                log.info(
+                    f"unsuccessful revalidation for user {self.context.samoware_login}"
+                )
                 return False
             polling_context = samoware_api.set_session_info(polling_context)
             polling_context = samoware_api.open_inbox(polling_context)
@@ -205,12 +211,10 @@ class ClientHandler:
             CAN_NOT_REVALIDATE_PROMPT,
             MARKDOWN_FORMAT,
         )
-    
+
     async def can_not_relogin(self):
         await self.message_sender(
-            self.context.telegram_id,
-            CAN_NOT_RELOGIN_PROMPT,
-            MARKDOWN_FORMAT
+            self.context.telegram_id, CAN_NOT_RELOGIN_PROMPT, MARKDOWN_FORMAT
         )
 
     async def session_has_expired(self):
