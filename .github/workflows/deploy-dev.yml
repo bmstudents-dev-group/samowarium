@@ -78,3 +78,11 @@ jobs:
           DOCKER_TAG=dev docker compose -p samowarium-dev down samowarium && 
           DOCKER_TAG=dev docker compose -p samowarium-dev up -d samowarium ||
           exit 1
+
+    - name: Prune images
+      run: |
+          docker image prune -f
+
+    - name: Remove configuration files
+      run: |
+          rm ./.env
