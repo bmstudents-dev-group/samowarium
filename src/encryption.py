@@ -6,10 +6,16 @@ import Crypto.Random as Random
 import base64
 
 BLOCK_SIZE = 16
-pad = lambda s: s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(
-    BLOCK_SIZE - len(s) % BLOCK_SIZE
-)
-unpad = lambda s: s[: -ord(s[len(s) - 1 :])]
+
+
+def pad(s):
+    return s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(
+        BLOCK_SIZE - len(s) % BLOCK_SIZE
+    )
+
+
+def unpad(s):
+    return s[: -ord(s[len(s) - 1 :])]
 
 
 class Encrypter:
@@ -40,5 +46,5 @@ class Encrypter:
         cipher = AES.new(self.encryption_key, AES.MODE_CBC, iv)
         try:
             return unpad(bytes.decode((cipher.decrypt(enc[16:])), encoding="utf-8"))
-        except:
+        except Exception as _:
             return None
