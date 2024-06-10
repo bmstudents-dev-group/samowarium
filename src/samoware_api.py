@@ -12,7 +12,12 @@ import xml.etree.ElementTree as ET
 from aiohttp import ClientSession, ClientTimeout
 from urllib.error import HTTPError
 
-from const import HTTP_COMMON_TIMEOUT_SEC, HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC, HTTP_FILE_LOAD_TIMEOUT_SEC, HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC
+from const import (
+    HTTP_COMMON_TIMEOUT_SEC,
+    HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
+    HTTP_FILE_LOAD_TIMEOUT_SEC,
+    HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
+)
 
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
 
@@ -126,7 +131,7 @@ def revalidate(login: str, session: str) -> SamowarePollingContext | None:
 
 
 async def longpoll_updates(
-    context: SamowarePollingContext
+    context: SamowarePollingContext,
 ) -> tuple[str, SamowarePollingContext]:
     async with ClientSession(
         timeout=ClientTimeout(
@@ -152,7 +157,9 @@ async def longpoll_updates(
                 log.error(
                     f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
                 )
-                raise HTTPError(url=url, code=response.status, msg=await response.text())
+                raise HTTPError(
+                    url=url, code=response.status, msg=await response.text()
+                )
             tree = ET.fromstring(response_text)
             ack_seq = context.ack_seq
             if "respSeq" in tree.attrib:
