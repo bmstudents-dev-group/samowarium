@@ -74,9 +74,9 @@ class TelegramBot:
             await self.send_message(
                 update.effective_user.id, PASSWORD_SAVED_PROMPT, MARKDOWN_FORMAT
             )
-            log.info(f"passport for user {update.effective_user.id} is saved")
+            log.info(f"password for user {update.effective_user.id} is saved")
         elif command == NO_SAVE_PSW_CALLBACK:
-            log.info(f"passport for user {update.effective_user.id} is not saved")
+            log.info(f"password for user {update.effective_user.id} is not saved")
         await self.application.bot.delete_message(
             update.effective_chat.id, update.callback_query.message.message_id
         )
