@@ -8,6 +8,7 @@ VERSION_VAR_NAME = "VERSION"
 TG_TOKEN_VAR_NAME = "TELEGRAM_TOKEN"
 DEBUG_VAR_NAME = "DEBUG"
 ENCRYPTION_KEY_VAR_NAME = "ENCRYPTION"
+IP_CHECK_VAR_NAME = "IP_CHECK"
 
 DEV_PROFILE_NAME = "DEV"
 PROD_PROFILE_NAME = "PROD"
@@ -29,6 +30,10 @@ def get_telegram_token() -> str:
 
 def get_encryption_key() -> str | None:
     return os.environ.get(ENCRYPTION_KEY_VAR_NAME, default=None)
+
+
+def is_ip_check_enabled() -> bool:
+    return os.environ.get(IP_CHECK_VAR_NAME) is not None
 
 
 def is_dev_profile() -> bool:
