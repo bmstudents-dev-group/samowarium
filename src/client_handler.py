@@ -4,15 +4,12 @@ from datetime import datetime, timedelta, timezone
 import re
 from typing import Self
 
-from aiohttp import ClientSession, ClientTimeout
 import aiohttp
 from context import Context
 
 from const import (
     HTML_FORMAT,
-    HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
-    HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
-    LONGPOLL_RETRY_DELAY_SEC,
+    HTTP_RETRY_DELAY_SEC,
     MARKDOWN_FORMAT,
 )
 from database import Database
@@ -26,12 +23,15 @@ from util import MessageSender
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
 
-SUCCESSFUL_LOGIN = "Доступ выдан. Все новые письма будут пересылаться в этот чат."
+SUCCESSFUL_LOGIN_PROMPT = (
+    "Доступ выдан. Все новые письма будут пересылаться в этот чат."
+)
 CAN_NOT_REVALIDATE_PROMPT = "Невозможно продлить сессию из-за внутренней ошибки. Для продолжения работы необходима повторная авторизация\n/login _логин_ _пароль_"
 SESSION_EXPIRED_PROMPT = "Сессия доступа к почте истекла. Для продолжения работы необходима повторная авторизация\n/login _логин_ _пароль_"
+CAN_NOT_RELOGIN_PROMPT = "Ошибка при автоматической повторной авторизации, невозможно продлить сессию. Для продолжения работы необходима авторизация\n/login _логин_ _пароль_"
 WRONG_CREDS_PROMPT = "Неверный логин или пароль."
-HANDLER_IS_ALREADY_WORKED = "Доступ уже был выдан."
-HANDLER_IS_ALREADY_SHUTTED_DOWN = "Доступ уже был отозван."
+HANDLER_IS_ALREADY_WORKED_PROMPT = "Доступ уже был выдан."
+HANDLER_IS_ALREADY_SHUTTED_DOWN_PROMPT = "Доступ уже был отозван."
 
 
 class ClientHandler:
@@ -56,19 +56,19 @@ class ClientHandler:
     ) -> Self | None:
         if db.is_client_active(telegram_id):
             await message_sender(
-                telegram_id, HANDLER_IS_ALREADY_WORKED, MARKDOWN_FORMAT
+                telegram_id, HANDLER_IS_ALREADY_WORKED_PROMPT, MARKDOWN_FORMAT
             )
             return None
-        polling_context = samoware_api.login(samoware_login, samoware_password)
-        if polling_context is None:
+        handler = ClientHandler(
+            message_sender, db, Context(telegram_id, samoware_login)
+        )
+        is_successful_login = await handler.login(samoware_password)
+        if not is_successful_login:
             await message_sender(telegram_id, WRONG_CREDS_PROMPT, MARKDOWN_FORMAT)
             return None
-        polling_context = samoware_api.set_session_info(polling_context)
-        polling_context = samoware_api.open_inbox(polling_context)
-        context = Context(telegram_id, samoware_login, polling_context)
-        db.add_client(telegram_id, context)
-        await message_sender(telegram_id, SUCCESSFUL_LOGIN, MARKDOWN_FORMAT)
-        return ClientHandler(message_sender, db, context)
+        db.add_client(telegram_id, handler.context)
+        await message_sender(telegram_id, SUCCESSFUL_LOGIN_PROMPT, MARKDOWN_FORMAT)
+        return handler
 
     @classmethod
     async def make_from_context(
@@ -89,23 +89,16 @@ class ClientHandler:
         await asyncio.wait([self.polling_task])
 
     async def polling(self) -> None:
-        async with ClientSession(
-            timeout=ClientTimeout(
-                connect=HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
-                total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
-            )
-        ) as http_session:
+        try:
             retry_count = 0
-            polling_context = self.context.polling_context
             log.info(f"longpolling for {self.context.samoware_login} is started")
 
             while self.db.is_client_active(self.context.telegram_id):
                 try:
+                    polling_context = self.context.polling_context
                     self.db.set_handler_context(self.context)
                     (polling_result, polling_context) = (
-                        await samoware_api.longpoll_updates(
-                            polling_context, http_session
-                        )
+                        await samoware_api.longpoll_updates(polling_context)
                     )
                     if samoware_api.has_updates(polling_result):
                         (mails, polling_context) = samoware_api.get_new_mails(
@@ -118,58 +111,111 @@ class ClientHandler:
                                 polling_context, mail_header.uid
                             )
                             await self.forward_mail(Mail(mail_header, mail_body))
+                    self.context.polling_context = polling_context
                     if datetime.astimezone(
                         self.context.last_revalidate + REVALIDATE_INTERVAL,
                         timezone.utc,
                     ) < datetime.now(timezone.utc):
-                        new_context = samoware_api.revalidate(
-                            self.context.samoware_login, polling_context.session
-                        )
-                        if new_context is None:
-                            log.warning(
-                                f"can not revalidate session for user {self.context.telegram_id} {self.context.samoware_login}"
-                            )
+                        is_successful_revalidation = self.revalidate()
+                        if not is_successful_revalidation:
                             await self.can_not_revalidate()
-                            break
-                        polling_context = new_context
-                        polling_context = samoware_api.set_session_info(polling_context)
-                        polling_context = samoware_api.open_inbox(polling_context)
-                        self.context.last_revalidate = datetime.now(timezone.utc)
-                        self.db.set_handler_context(self.context)
+                            self.db.remove_client(self.context.telegram_id)
+                            return
                     retry_count = 0
-                    self.context.polling_context = polling_context
                 except asyncio.CancelledError:
-                    break
+                    return
                 except UnauthorizedError:
                     log.info(f"session for {self.context.samoware_login} expired")
-                    await self.session_has_expired()
-                    self.db.remove_client(self.context.telegram_id)
-                    break
+                    samoware_password = self.db.get_password(self.context.telegram_id)
+                    if samoware_password is None:
+                        await self.session_has_expired()
+                        self.db.remove_client(self.context.telegram_id)
+                        return
+                    is_successful_relogin = await self.login(samoware_password)
+                    if not is_successful_relogin:
+                        await self.can_not_relogin()
+                        self.db.remove_client(self.context.telegram_id)
+                        return
                 except (
                     aiohttp.ClientOSError
                 ) as error:  # unknown source error https://github.com/aio-libs/aiohttp/issues/6912
                     log.warning(
-                        f"ClientOSError. Probably Broken pipe. Retrying in {LONGPOLL_RETRY_DELAY_SEC} seconds. {str(error)}"
-                    )
-                    log.info(
-                        f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {LONGPOLL_RETRY_DELAY_SEC} seconds..."
+                        f"retry_count={retry_count}. ClientOSError. Probably Broken pipe. Retrying in {HTTP_RETRY_DELAY_SEC} seconds. {str(error)}"
                     )
                     retry_count += 1
-                    await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
+                    await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
                 except Exception as error:
-                    log.exception("exception in client_handler: " + str(error))
-                    log.info(
-                        f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {LONGPOLL_RETRY_DELAY_SEC} seconds..."
+                    log.exception("exception in client_handler", error)
+                    log.warning(
+                        f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {HTTP_RETRY_DELAY_SEC} seconds..."
                     )
                     retry_count += 1
-                    await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
+                    await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
+        finally:
             log.info(f"longpolling for {self.context.samoware_login} stopped")
+
+    async def login(self, samoware_password: str) -> bool:
+        log.debug("trying to login")
+        retry_count = 0
+        while True:
+            try:
+                relogin_context = samoware_api.login(
+                    self.context.samoware_login, samoware_password
+                )
+                if relogin_context is None:
+                    log.info(
+                        f"unsuccessful login for user {self.context.samoware_login}"
+                    )
+                    return False
+                relogin_context = samoware_api.set_session_info(relogin_context)
+                relogin_context = samoware_api.open_inbox(relogin_context)
+                self.context.polling_context = relogin_context
+                self.db.set_handler_context(self.context)
+                log.info(f"successful login for user {self.context.samoware_login}")
+                return True
+            except asyncio.CancelledError:
+                log.info("login cancelled")
+                return False
+            except Exception as e:
+                log.exception(
+                    f"retry_count={retry_count}. exception on login. retrying in {HTTP_RETRY_DELAY_SEC}...",
+                    e,
+                )
+                retry_count += 1
+                await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
+
+    def revalidate(self) -> bool:
+        log.debug("trying to revalidate")
+        try:
+            polling_context = samoware_api.revalidate(
+                self.context.samoware_login, self.context.polling_context.session
+            )
+            if polling_context is None:
+                log.info(
+                    f"unsuccessful revalidation for user {self.context.samoware_login}"
+                )
+                return False
+            polling_context = samoware_api.set_session_info(polling_context)
+            polling_context = samoware_api.open_inbox(polling_context)
+            self.context.polling_context = polling_context
+            self.context.last_revalidate = datetime.now(timezone.utc)
+            self.db.set_handler_context(self.context)
+            log.info(f"successful revalidation for user {self.context.samoware_login}")
+            return True
+        except Exception as e:
+            log.exception("exception on revalidation", e)
+            return False
 
     async def can_not_revalidate(self):
         await self.message_sender(
             self.context.telegram_id,
             CAN_NOT_REVALIDATE_PROMPT,
             MARKDOWN_FORMAT,
+        )
+
+    async def can_not_relogin(self):
+        await self.message_sender(
+            self.context.telegram_id, CAN_NOT_RELOGIN_PROMPT, MARKDOWN_FORMAT
         )
 
     async def session_has_expired(self):

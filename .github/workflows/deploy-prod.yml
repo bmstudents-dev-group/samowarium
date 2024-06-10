@@ -70,6 +70,7 @@ jobs:
         run: |
           echo ENV=DEV >> .env;
           echo TELEGRAM_TOKEN=${{ secrets.DEV_TG_TOKEN }} >> .env;
+          echo ENCRYPTION='${{ secrets.DEV_ENCRYPTION }}' >> .env;
           echo VERSION=$(git rev-parse --short HEAD) >> .env;
       
       - name: Enable DEBUG logs
@@ -123,6 +124,7 @@ jobs:
         run: |
           echo ENV=PROD >> .env;
           echo TELEGRAM_TOKEN=${{ secrets.PROD_TG_TOKEN }} >> .env;
+          echo ENCRYPTION='${{ secrets.PROD_ENCRYPTION }}' >> .env;
           echo VERSION=$(git rev-parse --short HEAD) >> .env;
 
       - name: Enable DEBUG logs
