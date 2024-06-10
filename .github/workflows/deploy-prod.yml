@@ -23,6 +23,14 @@ on:
         description: 'Enable DEBUG level logs on prod stand'
         type: boolean
         default: false
+      dev-ip-check:
+        description: 'Enable IP check on dev stand'
+        type: boolean
+        default: false
+      prod-ip-check:
+        description: 'Enable IP check on prod stand'
+        type: boolean
+        default: false
 
 jobs:
   build-and-push-image:
@@ -77,6 +85,11 @@ jobs:
         if: ${{ inputs.dev-debug-logs }}
         run: |
           echo DEBUG= >> .env;
+
+      - name: Enable DEBUG IP check
+        if: ${{ inputs.dev-ip-check }}
+        run: |
+          echo IP_CHECK= >> .env;
   
       - name: Configure Docker Host
         uses: khaledez/configure-docker-host@v2
@@ -131,6 +144,11 @@ jobs:
         if: ${{ inputs.prod-debug-logs }}
         run: |
           echo DEBUG= >> .env;
+
+      - name: Enable DEBUG IP check
+        if: ${{ inputs.prod-ip-check }}
+        run: |
+          echo IP_CHECK= >> .env;
 
       - name: Configure Docker Host
         uses: khaledez/configure-docker-host@v2
