@@ -4,15 +4,12 @@ from datetime import datetime, timedelta, timezone
 import re
 from typing import Self
 
-from aiohttp import ClientSession, ClientTimeout
 import aiohttp
 from context import Context
 
 from const import (
     HTML_FORMAT,
-    HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
-    HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
-    LONGPOLL_RETRY_DELAY_SEC,
+    HTTP_RETRY_DELAY_SEC,
     MARKDOWN_FORMAT,
 )
 from database import Database
@@ -65,7 +62,7 @@ class ClientHandler:
         handler = ClientHandler(
             message_sender, db, Context(telegram_id, samoware_login)
         )
-        is_successful_login = handler.login(samoware_password)
+        is_successful_login = await handler.login(samoware_password)
         if not is_successful_login:
             await message_sender(telegram_id, WRONG_CREDS_PROMPT, MARKDOWN_FORMAT)
             return None
@@ -92,97 +89,100 @@ class ClientHandler:
         await asyncio.wait([self.polling_task])
 
     async def polling(self) -> None:
-        async with ClientSession(
-            timeout=ClientTimeout(
-                connect=HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
-                total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
-            )
-        ) as http_session:
-            try:
-                retry_count = 0
-                log.info(f"longpolling for {self.context.samoware_login} is started")
+        try:
+            retry_count = 0
+            log.info(f"longpolling for {self.context.samoware_login} is started")
 
-                while self.db.is_client_active(self.context.telegram_id):
-                    try:
-                        polling_context = self.context.polling_context
-                        self.db.set_handler_context(self.context)
-                        (polling_result, polling_context) = (
-                            await samoware_api.longpoll_updates(
-                                polling_context, http_session
-                            )
+            while self.db.is_client_active(self.context.telegram_id):
+                try:
+                    polling_context = self.context.polling_context
+                    self.db.set_handler_context(self.context)
+                    (polling_result, polling_context) = (
+                        await samoware_api.longpoll_updates(polling_context)
+                    )
+                    if samoware_api.has_updates(polling_result):
+                        (mails, polling_context) = samoware_api.get_new_mails(
+                            polling_context
                         )
-                        if samoware_api.has_updates(polling_result):
-                            (mails, polling_context) = samoware_api.get_new_mails(
-                                polling_context
+                        for mail_header in mails:
+                            log.info(f"new mail for {self.context.telegram_id}")
+                            log.debug(f"email flags: {mail_header.flags}")
+                            mail_body = samoware_api.get_mail_body_by_id(
+                                polling_context, mail_header.uid
                             )
-                            for mail_header in mails:
-                                log.info(f"new mail for {self.context.telegram_id}")
-                                log.debug(f"email flags: {mail_header.flags}")
-                                mail_body = samoware_api.get_mail_body_by_id(
-                                    polling_context, mail_header.uid
-                                )
-                                await self.forward_mail(Mail(mail_header, mail_body))
-                        self.context.polling_context = polling_context
-                        if datetime.astimezone(
-                            self.context.last_revalidate + REVALIDATE_INTERVAL,
-                            timezone.utc,
-                        ) < datetime.now(timezone.utc):
-                            is_successful_revalidation = self.revalidate()
-                            if not is_successful_revalidation:
-                                await self.can_not_revalidate()
-                                return
-                        retry_count = 0
-                    except asyncio.CancelledError:
-                        return
-                    except UnauthorizedError:
-                        log.info(f"session for {self.context.samoware_login} expired")
-                        samoware_password = self.db.get_password(
-                            self.context.telegram_id
-                        )
-                        if samoware_password is None:
-                            await self.session_has_expired()
+                            await self.forward_mail(Mail(mail_header, mail_body))
+                    self.context.polling_context = polling_context
+                    if datetime.astimezone(
+                        self.context.last_revalidate + REVALIDATE_INTERVAL,
+                        timezone.utc,
+                    ) < datetime.now(timezone.utc):
+                        is_successful_revalidation = self.revalidate()
+                        if not is_successful_revalidation:
+                            await self.can_not_revalidate()
                             self.db.remove_client(self.context.telegram_id)
                             return
-                        is_successful_relogin = self.login(samoware_password)
-                        if not is_successful_relogin:
-                            await self.can_not_relogin()
-                            return
-                    except (
-                        aiohttp.ClientOSError
-                    ) as error:  # unknown source error https://github.com/aio-libs/aiohttp/issues/6912
-                        log.warning(
-                            f"retry_count={retry_count}. ClientOSError. Probably Broken pipe. Retrying in {LONGPOLL_RETRY_DELAY_SEC} seconds. {str(error)}"
-                        )
-                        retry_count += 1
-                        await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
-                    except Exception as error:
-                        log.exception("exception in client_handler", error)
-                        log.warning(
-                            f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {LONGPOLL_RETRY_DELAY_SEC} seconds..."
-                        )
-                        retry_count += 1
-                        await asyncio.sleep(LONGPOLL_RETRY_DELAY_SEC)
-            finally:
-                log.info(f"longpolling for {self.context.samoware_login} stopped")
+                    retry_count = 0
+                except asyncio.CancelledError:
+                    return
+                except UnauthorizedError:
+                    log.info(f"session for {self.context.samoware_login} expired")
+                    samoware_password = self.db.get_password(self.context.telegram_id)
+                    if samoware_password is None:
+                        await self.session_has_expired()
+                        self.db.remove_client(self.context.telegram_id)
+                        return
+                    is_successful_relogin = await self.login(samoware_password)
+                    if not is_successful_relogin:
+                        await self.can_not_relogin()
+                        self.db.remove_client(self.context.telegram_id)
+                        return
+                except (
+                    aiohttp.ClientOSError
+                ) as error:  # unknown source error https://github.com/aio-libs/aiohttp/issues/6912
+                    log.warning(
+                        f"retry_count={retry_count}. ClientOSError. Probably Broken pipe. Retrying in {HTTP_RETRY_DELAY_SEC} seconds. {str(error)}"
+                    )
+                    retry_count += 1
+                    await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
+                except Exception as error:
+                    log.exception("exception in client_handler", error)
+                    log.warning(
+                        f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {HTTP_RETRY_DELAY_SEC} seconds..."
+                    )
+                    retry_count += 1
+                    await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
+        finally:
+            log.info(f"longpolling for {self.context.samoware_login} stopped")
 
-    def login(self, samoware_password: str) -> bool:
+    async def login(self, samoware_password: str) -> bool:
         log.debug("trying to login")
-        try:
-            relogin_context = samoware_api.login(
-                self.context.samoware_login, samoware_password
-            )
-            if relogin_context is None:
-                log.info(f"unsuccessful login for user {self.context.samoware_login}")
+        retry_count = 0
+        while True:
+            try:
+                relogin_context = samoware_api.login(
+                    self.context.samoware_login, samoware_password
+                )
+                if relogin_context is None:
+                    log.info(
+                        f"unsuccessful login for user {self.context.samoware_login}"
+                    )
+                    return False
+                relogin_context = samoware_api.set_session_info(relogin_context)
+                relogin_context = samoware_api.open_inbox(relogin_context)
+                self.context.polling_context = relogin_context
+                self.db.set_handler_context(self.context)
+                log.info(f"successful login for user {self.context.samoware_login}")
+                return True
+            except asyncio.CancelledError as e:
+                log.info("login cancelled")
                 return False
-            relogin_context = samoware_api.set_session_info(relogin_context)
-            relogin_context = samoware_api.open_inbox(relogin_context)
-            self.context.polling_context = relogin_context
-            self.db.set_handler_context(self.context)
-            log.info(f"successful login for user {self.context.samoware_login}")
-            return True
-        except Exception as e:
-            log.exception("exception on login", e)
-            return False
+            except Exception as e:
+                log.exception(
+                    f"retry_count={retry_count}. exception on login. retrying in {HTTP_RETRY_DELAY_SEC}...",
+                    e,
+                )
+                retry_count += 1
+                await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
 
     def revalidate(self) -> bool:
         log.debug("trying to revalidate")
@@ -201,6 +201,7 @@ class ClientHandler:
             self.context.last_revalidate = datetime.now(timezone.utc)
             self.db.set_handler_context(self.context)
             log.info(f"successful revalidation for user {self.context.samoware_login}")
+            return True
         except Exception as e:
             log.exception("exception on revalidation", e)
             return False

@@ -9,10 +9,10 @@ import re
 import logging as log
 import bs4 as bs
 import xml.etree.ElementTree as ET
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from urllib.error import HTTPError
 
-from const import HTTP_COMMON_TIMEOUT_SEC, HTTP_FILE_LOAD_TIMEOUT_SEC
+from const import HTTP_COMMON_TIMEOUT_SEC, HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC, HTTP_FILE_LOAD_TIMEOUT_SEC, HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC
 
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
 
@@ -126,35 +126,41 @@ def revalidate(login: str, session: str) -> SamowarePollingContext | None:
 
 
 async def longpoll_updates(
-    context: SamowarePollingContext, http_session: ClientSession
+    context: SamowarePollingContext
 ) -> tuple[str, SamowarePollingContext]:
-    url = f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ack_seq}&maxWait=20&random={context.rand}"
-    async with http_session.get(
-        url=url,
-        cookies=context.cookies,
-    ) as response:
-        response_text = await response.text()
-        log.debug(
-            f"samoware longpoll response code: {response.status}, text: {response_text}"
+    async with ClientSession(
+        timeout=ClientTimeout(
+            connect=HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
+            total=HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
         )
-        if response.status == 550:
-            log.warning(
-                f"received 550 code in longPollUpdates - Samoware Unauthorized. response: {response_text}"
+    ) as http_session:
+        url = f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ack_seq}&maxWait=20&random={context.rand}"
+        async with http_session.get(
+            url=url,
+            cookies=context.cookies,
+        ) as response:
+            response_text = await response.text()
+            log.debug(
+                f"samoware longpoll response code: {response.status}, text: {response_text}"
             )
-            raise UnauthorizedError
-        if response.status != 200:
-            log.error(
-                f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
+            if response.status == 550:
+                log.warning(
+                    f"received 550 code in longPollUpdates - Samoware Unauthorized. response: {response_text}"
+                )
+                raise UnauthorizedError
+            if response.status != 200:
+                log.error(
+                    f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
+                )
+                raise HTTPError(url=url, code=response.status, msg=await response.text())
+            tree = ET.fromstring(response_text)
+            ack_seq = context.ack_seq
+            if "respSeq" in tree.attrib:
+                ack_seq = int(tree.attrib["respSeq"])
+            return (
+                response_text,
+                context.make_next(ack_seq=ack_seq, rand=context.rand + 1),
             )
-            raise HTTPError(url=url, code=response.status, msg=await response.text())
-        tree = ET.fromstring(response_text)
-        ack_seq = context.ack_seq
-        if "respSeq" in tree.attrib:
-            ack_seq = int(tree.attrib["respSeq"])
-        return (
-            response_text,
-            context.make_next(ack_seq=ack_seq, rand=context.rand + 1),
-        )
 
 
 def get_new_mails(
