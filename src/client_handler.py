@@ -173,7 +173,7 @@ class ClientHandler:
                 self.db.set_handler_context(self.context)
                 log.info(f"successful login for user {self.context.samoware_login}")
                 return True
-            except asyncio.CancelledError as e:
+            except asyncio.CancelledError:
                 log.info("login cancelled")
                 return False
             except Exception as e:
