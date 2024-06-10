@@ -111,7 +111,11 @@ class Database:
             "SELECT password FROM clients WHERE telegram_id=?", (telegram_id,)
         ).fetchone()
         log.debug(f"requested password for the client {telegram_id}")
-        return self.encrypter.decrypt(row[0]) if row is not None and row[0] is not None else None
+        return (
+            self.encrypter.decrypt(row[0])
+            if row is not None and row[0] is not None
+            else None
+        )
 
     def is_client_active(self, telegram_id: int) -> bool:
         is_active = (
