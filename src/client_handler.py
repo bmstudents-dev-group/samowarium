@@ -159,17 +159,18 @@ class ClientHandler:
         retry_count = 0
         while True:
             try:
-                relogin_context = samoware_api.login(
+                polling_context = samoware_api.login(
                     self.context.samoware_login, samoware_password
                 )
-                if relogin_context is None:
+                if polling_context is None:
                     log.info(
                         f"unsuccessful login for user {self.context.samoware_login}"
                     )
                     return False
-                relogin_context = samoware_api.set_session_info(relogin_context)
-                relogin_context = samoware_api.open_inbox(relogin_context)
-                self.context.polling_context = relogin_context
+                polling_context = samoware_api.set_session_info(polling_context)
+                polling_context = samoware_api.open_inbox(polling_context)
+                self.context.polling_context = polling_context
+                self.context.last_revalidate = datetime.now(timezone.utc)
                 self.db.set_handler_context(self.context)
                 log.info(f"successful login for user {self.context.samoware_login}")
                 return True
