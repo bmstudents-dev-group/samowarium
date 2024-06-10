@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from aiohttp import ClientSession, ClientTimeout
 from urllib.error import HTTPError
 
+import env
 from const import (
     HTTP_COMMON_TIMEOUT_SEC,
     HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
@@ -98,9 +99,10 @@ class Mail:
 
 def login(login: str, password: str) -> SamowarePollingContext | None:
     log.debug(f"logging in for {login}")
-    url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
+    disable_ip_watch_str = '' if env.is_ip_check_enabled() else 'DisableIPWatch=&'
+    url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&{disable_ip_watch_str}EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
     if SESSION_TOKEN_PATTERN.match(password):
-        url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={password}"
+        url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&{disable_ip_watch_str}EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={password}"
     response = requests.get(url=url)
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
@@ -109,14 +111,14 @@ def login(login: str, password: str) -> SamowarePollingContext | None:
     session = tree.find("session").attrib["urlID"]
 
     log.debug(f"successful login for {login}")
-
     return SamowarePollingContext(session=session)
 
 
 def revalidate(login: str, session: str) -> SamowarePollingContext | None:
     log.debug(f"revalidating session for {login}")
+    disable_ip_watch_str = '' if env.is_ip_check_enabled() else 'DisableIPWatch=&'
     response = requests.get(
-        url=f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}",
+        url=f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&{disable_ip_watch_str}&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}",
     )
 
     tree = ET.fromstring(response.text)
