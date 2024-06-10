@@ -105,7 +105,7 @@ class ClientHandler:
                             polling_context
                         )
                         for mail_header in mails:
-                            log.info(f"new mail for {self.context.telegram_id}")
+                            log.info(f"new mail for {self.context.samoware_login}")
                             log.debug(f"email flags: {mail_header.flags}")
                             mail_body = samoware_api.get_mail_body_by_id(
                                 polling_context, mail_header.uid
