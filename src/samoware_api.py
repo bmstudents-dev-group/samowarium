@@ -114,7 +114,7 @@ def login(login: str, password: str) -> SamowarePollingContext | None:
     else:
         params["password"] = password
     if not env.is_ip_check_enabled():
-        params["DisableIPWatch"] = ""
+        params["DisableIPWatch"] = "1"
     response = requests.get(url, params)
 
     tree = ET.fromstring(response.text)
@@ -141,7 +141,7 @@ def revalidate(login: str, session: str) -> SamowarePollingContext | None:
         "sessionid": session,
     }
     if not env.is_ip_check_enabled():
-        params["DisableIPWatch"] = ""
+        params["DisableIPWatch"] = "1"
     response = requests.get(url, params)
 
     tree = ET.fromstring(response.text)
