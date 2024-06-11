@@ -234,9 +234,9 @@ class ClientHandler:
 
         mail_text = f'{datetime.strftime(mail.header.local_time, "%d.%m.%Y %H:%M")}\n\nОт кого: {from_str}\n\nКому: {to_str}\n\n<b>{mail.header.subject}</b>\n\n{mail.body.text}'
 
-        await self.message_sender(
+        asyncio.ensure_future(self.message_sender(
             self.context.telegram_id,
             mail_text,
             HTML_FORMAT,
             mail.body.attachments if len(mail.body.attachments) > 0 else None,
-        )
+        ))
