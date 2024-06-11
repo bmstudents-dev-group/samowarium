@@ -69,7 +69,7 @@ jobs:
     - name: Enable IP check
       if: ${{ inputs.ip-check }}
       run: |
-        echo IP_CHECK >> .env;
+        echo IP_CHECK= >> .env;
 
     - name: Configure Docker Host
       uses: khaledez/configure-docker-host@v2
