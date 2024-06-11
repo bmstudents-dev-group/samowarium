@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from aiohttp import ClientSession, ClientTimeout
 from urllib.error import HTTPError
 
+import env
 from const import (
     HTTP_COMMON_TIMEOUT_SEC,
     HTTP_CONNECT_LONGPOLL_TIMEOUT_SEC,
@@ -98,10 +99,24 @@ class Mail:
 
 def login(login: str, password: str) -> SamowarePollingContext | None:
     log.debug(f"logging in for {login}")
-    url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&password={password}"
+
+    url = "https://mailstudent.bmstu.ru/XIMSSLogin/"
+    params = {
+        "errorAsXML": "1",
+        "EnableUseCookie": "1",
+        "x2auth": "1",
+        "canUpdatePwd": "1",
+        "version": "6.1",
+        "userName": login,
+    }
     if SESSION_TOKEN_PATTERN.match(password):
-        url = f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={password}"
-    response = requests.get(url=url)
+        params["sessionid"] = password
+    else:
+        params["password"] = password
+    if not env.is_ip_check_enabled():
+        params["DisableIPWatch"] = "1"
+    response = requests.get(url, params)
+
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:
         log.debug(f"logging in response ({login}) does not have session tag")
@@ -109,15 +124,25 @@ def login(login: str, password: str) -> SamowarePollingContext | None:
     session = tree.find("session").attrib["urlID"]
 
     log.debug(f"successful login for {login}")
-
     return SamowarePollingContext(session=session)
 
 
 def revalidate(login: str, session: str) -> SamowarePollingContext | None:
     log.debug(f"revalidating session for {login}")
-    response = requests.get(
-        url=f"https://mailstudent.bmstu.ru/XIMSSLogin/?errorAsXML=1&EnableUseCookie=1&x2auth=1&canUpdatePwd=1&version=6.1&userName={login}&sessionid={session}",
-    )
+
+    url = "https://mailstudent.bmstu.ru/XIMSSLogin/"
+    params = {
+        "errorAsXML": "1",
+        "EnableUseCookie": "1",
+        "x2auth": "1",
+        "canUpdatePwd": "1",
+        "version": "6.1",
+        "userName": login,
+        "sessionid": session,
+    }
+    if not env.is_ip_check_enabled():
+        params["DisableIPWatch"] = "1"
+    response = requests.get(url, params)
 
     tree = ET.fromstring(response.text)
     if tree.find("session") is None:

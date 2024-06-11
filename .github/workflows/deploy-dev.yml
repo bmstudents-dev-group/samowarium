@@ -10,6 +10,10 @@ on:
         description: 'Enable DEBUG level logs'
         type: boolean
         default: false
+      ip-check:
+        description: 'Enable IP check'
+        type: boolean
+        default: false
 
 jobs:
   build-and-push-image:
@@ -61,6 +65,11 @@ jobs:
       if: ${{ inputs.debug-logs }}
       run: |
         echo DEBUG= >> .env;
+
+    - name: Enable IP check
+      if: ${{ inputs.ip-check }}
+      run: |
+        echo IP_CHECK= >> .env;
 
     - name: Configure Docker Host
       uses: khaledez/configure-docker-host@v2
