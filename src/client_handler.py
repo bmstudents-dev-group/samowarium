@@ -145,7 +145,7 @@ class ClientHandler:
                     retry_count += 1
                     await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
                 except Exception as error:
-                    log.exception("exception in client_handler", error)
+                    log.exception("exception in client_handler")
                     log.warning(
                         f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {HTTP_RETRY_DELAY_SEC} seconds..."
                     )
@@ -179,8 +179,7 @@ class ClientHandler:
                 return False
             except Exception as e:
                 log.exception(
-                    f"retry_count={retry_count}. exception on login. retrying in {HTTP_RETRY_DELAY_SEC}...",
-                    e,
+                    f"retry_count={retry_count}. exception on login. retrying in {HTTP_RETRY_DELAY_SEC}..."
                 )
                 retry_count += 1
                 await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
@@ -204,7 +203,7 @@ class ClientHandler:
             log.info(f"successful revalidation for user {self.context.samoware_login}")
             return True
         except Exception as e:
-            log.exception("exception on revalidation", e)
+            log.exception("exception on revalidation")
             return False
 
     async def can_not_revalidate(self):
