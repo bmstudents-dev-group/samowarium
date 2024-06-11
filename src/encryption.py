@@ -44,5 +44,5 @@ class Encrypter:
         try:
             return unpad(bytes.decode((cipher.decrypt(enc[16:])), encoding="utf-8"))
         except Exception as e:
-            log.exception("can not decrypt data")
+            log.exception("can not decrypt data", e)
             return None
