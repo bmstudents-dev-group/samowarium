@@ -107,7 +107,7 @@ class TelegramBot:
 
     async def stop_bot(self):
         log.info("shutting down handlers...")
-        await asyncio.gather(*[handler.stop_handling() for handler in self.handlers.values])
+        await asyncio.gather(*[handler.stop_handling() for handler in self.handlers.values()])
         log.info("shutting down the bot...")
         await self.application.updater.stop()
         await self.application.stop()
