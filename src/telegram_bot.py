@@ -125,7 +125,7 @@ class TelegramBot:
     ) -> None:
         log.debug(f"received /stop from {update.effective_user.id}")
         telegram_id = update.effective_user.id
-        self.handlers[telegram_id].stop_handling()
+        await self.handlers[telegram_id].stop_handling()
         self.db.remove_client(
             telegram_id
         )  # TODO: не удалять запись, а удалять только контекст и пароль
