@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime, timedelta
 import json
 
-db = sqlite3.connect("samowarium/db/database.db")
+db = sqlite3.connect("db/database.db")
 
 def getAllClients() -> list:
     return db.execute("SELECT telegram_id FROM clients").fetchall()

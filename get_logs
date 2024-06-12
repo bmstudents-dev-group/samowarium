@@ -1,2 +1,2 @@
 #!/bin/bash
-cat samowarium/logs/samowarium.log
+cat logs/samowarium.log

@@ -6,12 +6,12 @@ WORKDIR /samowarium
 
 COPY yoyo.ini .
 
-RUN apt-get update && apt-get install -y python3.12-dev
+RUN apt-get update
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY ./migrations ./migrations
 COPY ./src .
-COPY ./get_logs ../
-COPY ./get_users ../
+COPY ./get_logs .
+COPY ./get_users .
