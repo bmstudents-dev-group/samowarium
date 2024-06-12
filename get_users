@@ -2,16 +2,14 @@
 
 from database import Database
 
-db = Database("db/database.db")
-db.initialize()
+with Database("db/database.db") as db:
+    db.initialize()
 
-clients = db.get_all_clients()
+    clients = db.get_all_clients()
 
-print(len(clients), "users")
-print("telegram_id\tsamoware_id")
-for client in clients:
-    telegram_id = client[0]
-    samoware_id = client[1].samoware_login
-    print(str(telegram_id)+"\t"+samoware_id)
-
-db.close()
+    print(len(clients), "users")
+    print("telegram_id\tsamoware_id")
+    for client in clients:
+        telegram_id = client[0]
+        samoware_id = client[1].samoware_login
+        print(str(telegram_id)+"\t"+samoware_id)
