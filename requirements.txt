@@ -1,7 +1,7 @@
-requests==2.32.2
+requests==2.32.3
 beautifulsoup4==4.12.3
 aiohttp==3.9.5
-python-telegram-bot==20.8
+python-telegram-bot==21.3
 python-dotenv==1.0.1
 python-dateutil==2.9.0
 yoyo-migrations==8.2.0
