@@ -1,7 +1,6 @@
 #!/usr/local/bin/python3
 
 import sqlite3
-from datetime import datetime, timedelta
 import json
 
 db = sqlite3.connect("db/database.db")
