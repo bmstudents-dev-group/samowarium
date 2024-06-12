@@ -1,0 +1,27 @@
+#!/bin/python3
+
+import sqlite3
+from datetime import datetime, timedelta
+import json
+
+db = sqlite3.connect("db/database.db")
+
+def getAllClients() -> list:
+    return db.execute("SELECT telegram_id FROM clients").fetchall()
+
+def getSamowareContext(telegram_id: int):
+    context_encoded = db.execute(
+        "SELECT samoware_context FROM clients WHERE telegram_id=?",
+        (telegram_id,),
+    ).fetchone()
+    context = json.loads(context_encoded[0])
+    return context
+
+telegram_ids = getAllClients()
+
+print(len(telegram_ids), "users")
+print("telegram_id\tsamoware_id")
+for telegram_id1 in telegram_ids:
+    telegram_id = telegram_id1[0]
+    samowarium_id = getSamowareContext(telegram_id)["login"]
+    print(str(telegram_id)+"\t"+samowarium_id)
