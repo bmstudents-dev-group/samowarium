@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/local/bin/python3
 
 import sqlite3
 from datetime import datetime, timedelta
