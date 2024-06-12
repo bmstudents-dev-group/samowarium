@@ -26,11 +26,11 @@ on:
       dev-ip-check:
         description: 'Enable IP check on dev stand'
         type: boolean
-        default: false
+        default: true
       prod-ip-check:
         description: 'Enable IP check on prod stand'
         type: boolean
-        default: false
+        default: true
 
 jobs:
   build-and-push-image:
