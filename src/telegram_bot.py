@@ -61,7 +61,7 @@ class TelegramBot:
             ("login", self.login_command),
             ("about", self.about_command),
         ]
-        self.handlers: list[ClientHandler] = []
+        self.handlers: dict[int, ClientHandler] = {}
 
     async def callback_query_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -84,12 +84,12 @@ class TelegramBot:
     async def start_bot(self) -> None:
         log.info("starting the bot...")
         log.info("loading handlers...")
-        for _, context in self.db.get_all_clients():
+        for telegram_id, context in self.db.get_all_clients():
             handler = await ClientHandler.make_from_context(
                 context, self.send_message, self.db
             )
             await handler.start_handling()
-            self.handlers.append(handler)
+            self.handlers[telegram_id] = handler
         log.info("handlers are loaded")
 
         log.info("connecting to telegram api...")
@@ -107,7 +107,7 @@ class TelegramBot:
 
     async def stop_bot(self):
         log.info("shutting down handlers...")
-        await asyncio.gather(*[handler.stop_handling() for handler in self.handlers])
+        await asyncio.gather(*[handler.stop_handling() for handler in self.handlers.values])
         log.info("shutting down the bot...")
         await self.application.updater.stop()
         await self.application.stop()
@@ -125,6 +125,7 @@ class TelegramBot:
     ) -> None:
         log.debug(f"received /stop from {update.effective_user.id}")
         telegram_id = update.effective_user.id
+        self.handlers[telegram_id].stop_handling()
         self.db.remove_client(
             telegram_id
         )  # TODO: не удалять запись, а удалять только контекст и пароль
@@ -150,7 +151,7 @@ class TelegramBot:
         )
         if new_handler is not None:
             await new_handler.start_handling()
-            self.handlers.append(new_handler)
+            self.handlers[telegram_id] = new_handler
             await self.application.bot.send_message(
                 update.effective_chat.id,
                 SAVE_PASSWORD_PROMPT,
