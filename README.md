@@ -67,9 +67,3 @@ docker compose down
 ```bash
 docker exec <контейнер> ./get_logs
 ```
-
-- Вывести пользователей
-
-```bash
-docker exec <контейнер> ./get_users
-```
