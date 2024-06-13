@@ -20,8 +20,6 @@ DEBUG=            # выставляет уровень логирования D
 - Установить зависимости:
 
 ```bash
-# если используется другая версия python, то установить соответствующий пакет
-apt-get update && apt-get install python3.12-dev
 pip install -r requirements.txt
 ```
 
