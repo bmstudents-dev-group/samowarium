@@ -44,6 +44,8 @@ def setup_logger():
         level=LOGGER_LEVEL,
     )
     logging.getLogger("httpx").setLevel(logging.WARN)
+    if env.is_prod_profile():
+        logging.getLogger("telegram.ext.Updater").setLevel(logging.CRITICAL)
 
 
 async def main() -> None:
