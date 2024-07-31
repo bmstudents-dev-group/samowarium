@@ -60,9 +60,3 @@ DOCKER_TAG=latest docker compose up -d
 ```bash
 docker compose down
 ```
-
-- Вывести логи
-
-```bash
-docker exec <контейнер> ./get_logs
-```
