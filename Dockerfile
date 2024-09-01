@@ -11,5 +11,3 @@ RUN pip install -r requirements.txt
 
 COPY ./migrations ./migrations
 COPY ./src .
-COPY ./get_logs .
-COPY ./get_users .
