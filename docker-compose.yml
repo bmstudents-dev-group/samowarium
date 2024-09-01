@@ -12,6 +12,7 @@ services:
       - python3
     command:
       - samowarium.py
+    restart: unless-stopped
 
 volumes:
   db:
