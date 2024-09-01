@@ -357,11 +357,19 @@ def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> MailBody:
     for mailBodyHtml in mailBodiesHtml:
         log.debug("mail body: " + str(mailBodyHtml.encode()))
         foundTextBeg = False
-        for element in mailBodyHtml.findChildren(recursive=False):
-            if element.has_attr("class") and "textBeg" in element["class"]:
+        for element in mailBodyHtml.children:
+            if (
+                isinstance(element, bs.Tag)
+                and element.has_attr("class")
+                and "textBeg" in element["class"]
+            ):
                 foundTextBeg = True
                 log.debug("found textBeg")
-            if element.has_attr("class") and "textEnd" in element["class"]:
+            if (
+                isinstance(element, bs.Tag)
+                and element.has_attr("class")
+                and "textEnd" in element["class"]
+            ):
                 log.debug("found textEnd")
                 break
             if foundTextBeg:
@@ -387,6 +395,7 @@ def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> MailBody:
 
 
 def html_element_to_text(element):
+    log.debug(f"converting html element to text: {element}")
     if isinstance(element, bs.NavigableString):
         return html.escape(
             re.sub(
