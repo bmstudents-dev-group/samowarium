@@ -358,10 +358,18 @@ def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> MailBody:
         log.debug("mail body: " + str(mailBodyHtml.encode()))
         foundTextBeg = False
         for element in mailBodyHtml.children:
-            if isinstance(element, bs.Tag) and element.has_attr("class") and "textBeg" in element["class"]:
+            if (
+                isinstance(element, bs.Tag)
+                and element.has_attr("class")
+                and "textBeg" in element["class"]
+            ):
                 foundTextBeg = True
                 log.debug("found textBeg")
-            if isinstance(element, bs.Tag) and element.has_attr("class") and "textEnd" in element["class"]:
+            if (
+                isinstance(element, bs.Tag)
+                and element.has_attr("class")
+                and "textEnd" in element["class"]
+            ):
                 log.debug("found textEnd")
                 break
             if foundTextBeg:
