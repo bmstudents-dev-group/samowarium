@@ -67,8 +67,8 @@ class Database:
         context_encoded = dumps(map_context_to_dict(context))
 
         self.connection.execute(
-            "INSERT INTO clients VALUES(?, ?, ?)",
-            (telegram_id, context_encoded, None),
+            "INSERT INTO clients VALUES(?, ?, ?, ?)",
+            (telegram_id, context_encoded, None, True),
         )
         self.connection.commit()
         log.debug(f"client {telegram_id} has inserted")
@@ -157,3 +157,17 @@ class Database:
         )
         self.connection.commit()
         log.debug(f"client {telegram_id} was removed")
+
+    def set_autoread(self, telegram_id: int, enabled: bool) -> None:
+        self.connection.execute(
+            "UPDATE clients SET autoread=? WHERE telegram_id=?", (enabled, telegram_id,)
+        )
+        self.connection.commit()
+        log.debug(f"autoread for {telegram_id} was set to {enabled}")
+
+    def get_autoread(self, telegram_id: int) -> bool:
+        enabled = self.connection.execute(
+            "SELECT autoread FROM clients WHERE telegram_id=?", (telegram_id,)
+        ).fetchone()[0]
+        log.debug(f"autoread for {telegram_id} is set to {enabled}")
+        return enabled

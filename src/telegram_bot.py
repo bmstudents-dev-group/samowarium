@@ -46,10 +46,23 @@ SAVE_PASSWORD_PROMPT = (
 )
 PASSWORD_SAVED_PROMPT = "Пароль сохранен."
 
+AUTOREAD_PROMPT = (
+    "Отмечать письма в почте прочитанными автоматически?"
+)
+AUTOREAD_ON_PROMPT = (
+    "Письма будут отмечаться прочитанными автоматически"
+)
+AUTOREAD_OFF_PROMPT = (
+    "Письма не будут отмечаться прочитанными"
+)
+
 MAX_TELEGRAM_MESSAGE_LENGTH = 4096
 
 SAVE_PSW_CALLBACK = "SAVE_PSW"
 NO_SAVE_PSW_CALLBACK = "NO_SAVE_PSW"
+
+AUTOREAD_ON_CALLBACK = "AUTOREAD_ON"
+AUTOREAD_OFF_CALLBACK = "AUTOREAD_OFF"
 
 
 class TelegramBot:
@@ -77,6 +90,18 @@ class TelegramBot:
             log.info(f"password for user {update.effective_user.id} is saved")
         elif command == NO_SAVE_PSW_CALLBACK:
             log.info(f"password for user {update.effective_user.id} is not saved")
+        elif command == AUTOREAD_ON_CALLBACK:
+            self.db.set_autoread(update.effective_user.id, True)
+            await self.send_message(
+                update.effective_user.id, AUTOREAD_ON_PROMPT, MARKDOWN_FORMAT
+            )
+            log.info(f"autoread for user {update.effective_user.id} is enabled")
+        elif command == AUTOREAD_OFF_CALLBACK:
+            self.db.set_autoread(update.effective_user.id, False)
+            await self.send_message(
+                update.effective_user.id, AUTOREAD_OFF_PROMPT, MARKDOWN_FORMAT
+            )
+            log.info(f"autoread for user {update.effective_user.id} is not enabled")
         await self.application.bot.delete_message(
             update.effective_chat.id, update.callback_query.message.message_id
         )
@@ -173,6 +198,25 @@ class TelegramBot:
                             telegram.InlineKeyboardButton(
                                 text="Нет",
                                 callback_data=":".join((NO_SAVE_PSW_CALLBACK,)),
+                            ),
+                        ]
+                    ]
+                ),
+            )
+            await self.application.bot.send_message(
+                update.effective_chat.id,
+                AUTOREAD_PROMPT,
+                parse_mode=MARKDOWN_FORMAT,
+                reply_markup=telegram.InlineKeyboardMarkup(
+                    [
+                        [
+                            telegram.InlineKeyboardButton(
+                                text="Да",
+                                callback_data=AUTOREAD_ON_CALLBACK
+                            ),
+                            telegram.InlineKeyboardButton(
+                                text="Нет",
+                                callback_data=AUTOREAD_OFF_CALLBACK,
                             ),
                         ]
                     ]

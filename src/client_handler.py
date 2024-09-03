@@ -101,16 +101,18 @@ class ClientHandler:
                         await samoware_api.longpoll_updates(polling_context)
                     )
                     if samoware_api.has_updates(polling_result):
-                        (mails, polling_context) = samoware_api.get_new_mails(
+                        (mails, polling_context) = await samoware_api.get_new_mails(
                             polling_context
                         )
                         for mail_header in mails:
                             log.info(f"new mail for {self.context.samoware_login}")
                             log.debug(f"email flags: {mail_header.flags}")
-                            mail_body = samoware_api.get_mail_body_by_id(
+                            mail_body = await samoware_api.get_mail_body_by_id(
                                 polling_context, mail_header.uid
                             )
                             await self.forward_mail(Mail(mail_header, mail_body))
+                            if(self.db.get_autoread(self.context.telegram_id)):
+                                polling_context = await samoware_api.mark_as_read(polling_context, mail_header.uid)
                     self.context.polling_context = polling_context
                     if datetime.astimezone(
                         self.context.last_revalidate + REVALIDATE_INTERVAL,
@@ -159,7 +161,7 @@ class ClientHandler:
         retry_count = 0
         while True:
             try:
-                polling_context = samoware_api.login(
+                polling_context = await samoware_api.login(
                     self.context.samoware_login, samoware_password
                 )
                 if polling_context is None:
@@ -167,8 +169,8 @@ class ClientHandler:
                         f"unsuccessful login for user {self.context.samoware_login}"
                     )
                     return False
-                polling_context = samoware_api.set_session_info(polling_context)
-                polling_context = samoware_api.open_inbox(polling_context)
+                polling_context = await samoware_api.set_session_info(polling_context)
+                polling_context = await samoware_api.open_inbox(polling_context)
                 self.context.polling_context = polling_context
                 self.context.last_revalidate = datetime.now(timezone.utc)
                 self.db.set_handler_context(self.context)
@@ -184,10 +186,10 @@ class ClientHandler:
                 retry_count += 1
                 await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
 
-    def revalidate(self) -> bool:
+    async def revalidate(self) -> bool:
         log.debug("trying to revalidate")
         try:
-            polling_context = samoware_api.revalidate(
+            polling_context = await samoware_api.revalidate(
                 self.context.samoware_login, self.context.polling_context.session
             )
             if polling_context is None:
@@ -195,8 +197,8 @@ class ClientHandler:
                     f"unsuccessful revalidation for user {self.context.samoware_login}"
                 )
                 return False
-            polling_context = samoware_api.set_session_info(polling_context)
-            polling_context = samoware_api.open_inbox(polling_context)
+            polling_context = await samoware_api.set_session_info(polling_context)
+            polling_context = await samoware_api.open_inbox(polling_context)
             self.context.polling_context = polling_context
             self.context.last_revalidate = datetime.now(timezone.utc)
             self.db.set_handler_context(self.context)
