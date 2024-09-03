@@ -150,7 +150,7 @@ async def revalidate(login: str, session: str) -> SamowarePollingContext | None:
         timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
     ) as http_session:
         response = await http_session.get(url, params)
-    
+
         tree = ET.fromstring(await response.text())
         if tree.find("session") is None:
             log.debug(f"revalidation response ({login}) does not have session tag")
@@ -311,7 +311,7 @@ async def set_session_info(context: SamowarePollingContext) -> SamowarePollingCo
 
 async def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
     url = f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}"
-    data = f'''<XIMSS>
+    data = f"""<XIMSS>
             <listKnownValues id="{context.command_id}"/>
             <mailboxList filter="%" pureFolder="yes" id="{context.command_id + 1}"/>
             <mailboxList filter="%/%" pureFolder="yes" id="{context.command_id + 2}"/>
@@ -333,7 +333,7 @@ async def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
                 <field>Message-ID</field>
             </folderOpen>
             <setSessionOption name="reportMailboxChanges" value="yes" id="{context.command_id + 4}"/>
-        </XIMSS>'''
+        </XIMSS>"""
     async with ClientSession(
         timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
         cookies=context.cookies,
@@ -348,7 +348,9 @@ async def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
             log.error(
                 f"received non 200 code in openInbox: {response.status}. response: {await response.text()}"
             )
-            raise HTTPError(url=url, code=response.status, msg=(await response.text()), hdrs=None)
+            raise HTTPError(
+                url=url, code=response.status, msg=(await response.text()), hdrs=None
+            )
 
         return context.make_next(
             request_id=context.request_id + 1,
@@ -373,7 +375,9 @@ async def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> Mail
             log.error(
                 f"received non 200 code in getMailBodyById: {response.status}\nresponse: {await response.text()}"
             )
-            raise HTTPError(url=url, code=response.status, msg=(await response.text()), hdrs=None)
+            raise HTTPError(
+                url=url, code=response.status, msg=(await response.text()), hdrs=None
+            )
         tree = bs.BeautifulSoup((await response.text()), "html.parser")
         mailBodiesHtml = tree.findAll("div", {"class": "samoware-RFC822-body"})
 
@@ -409,12 +413,14 @@ async def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> Mail
             attachment_url = (
                 "https://student.bmstu.ru" + attachment_html["attachment-ref"]
             )
-            file = (await http_session.get(
-                attachment_url,
-                cookies=context.cookies,
-                stream=True,
-                timeout=HTTP_FILE_LOAD_TIMEOUT_SEC,
-            )).content
+            file = (
+                await http_session.get(
+                    attachment_url,
+                    cookies=context.cookies,
+                    stream=True,
+                    timeout=HTTP_FILE_LOAD_TIMEOUT_SEC,
+                )
+            ).content
             name = attachment_html["attachment-name"]
             attachments.append((file, name))
         return MailBody(text, attachments)
@@ -439,7 +445,9 @@ async def mark_as_read(
             log.error(
                 f"received non 200 code in mark_as_read: {response.status}\nresponse: {await response.text()}"
             )
-            raise HTTPError(url=url, code=response.status, msg=(await response.text()), hdrs=None)
+            raise HTTPError(
+                url=url, code=response.status, msg=(await response.text()), hdrs=None
+            )
         return context.make_next(
             request_id=context.request_id + 1,
             rand=context.rand + 1,

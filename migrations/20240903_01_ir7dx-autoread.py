@@ -4,7 +4,7 @@ autoread
 
 from yoyo import step
 
-__depends__ = {'20240608_02_yk7yR-add-password-column'}
+__depends__ = {"20240608_02_yk7yR-add-password-column"}
 
 steps = [
     step(

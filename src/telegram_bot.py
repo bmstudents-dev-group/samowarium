@@ -46,15 +46,9 @@ SAVE_PASSWORD_PROMPT = (
 )
 PASSWORD_SAVED_PROMPT = "Пароль сохранен."
 
-AUTOREAD_PROMPT = (
-    "Отмечать письма в почте прочитанными автоматически?"
-)
-AUTOREAD_ON_PROMPT = (
-    "Письма будут отмечаться прочитанными автоматически"
-)
-AUTOREAD_OFF_PROMPT = (
-    "Письма не будут отмечаться прочитанными"
-)
+AUTOREAD_PROMPT = "Отмечать письма в почте прочитанными автоматически?"
+AUTOREAD_ON_PROMPT = "Письма будут отмечаться прочитанными автоматически"
+AUTOREAD_OFF_PROMPT = "Письма не будут отмечаться прочитанными"
 
 MAX_TELEGRAM_MESSAGE_LENGTH = 4096
 
@@ -211,8 +205,7 @@ class TelegramBot:
                     [
                         [
                             telegram.InlineKeyboardButton(
-                                text="Да",
-                                callback_data=AUTOREAD_ON_CALLBACK
+                                text="Да", callback_data=AUTOREAD_ON_CALLBACK
                             ),
                             telegram.InlineKeyboardButton(
                                 text="Нет",

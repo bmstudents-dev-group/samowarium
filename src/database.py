@@ -160,7 +160,11 @@ class Database:
 
     def set_autoread(self, telegram_id: int, enabled: bool) -> None:
         self.connection.execute(
-            "UPDATE clients SET autoread=? WHERE telegram_id=?", (enabled, telegram_id,)
+            "UPDATE clients SET autoread=? WHERE telegram_id=?",
+            (
+                enabled,
+                telegram_id,
+            ),
         )
         self.connection.commit()
         log.debug(f"autoread for {telegram_id} was set to {enabled}")
