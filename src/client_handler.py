@@ -111,10 +111,8 @@ class ClientHandler:
                                 polling_context, mail_header.uid
                             )
                             await self.forward_mail(Mail(mail_header, mail_body))
-                            if self.db.get_autoread(self.context.telegram_id):
-                                polling_context = await samoware_api.mark_as_read(
-                                    polling_context, mail_header.uid
-                                )
+                            if(self.db.get_autoread(self.context.telegram_id)):
+                                polling_context = await samoware_api.mark_as_read(polling_context, mail_header.uid)
                     self.context.polling_context = polling_context
                     if datetime.astimezone(
                         self.context.last_revalidate + REVALIDATE_INTERVAL,
