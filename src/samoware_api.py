@@ -413,14 +413,12 @@ async def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> Mail
             attachment_url = (
                 "https://student.bmstu.ru" + attachment_html["attachment-ref"]
             )
-            file = (
+            file = await (
                 await http_session.get(
                     attachment_url,
-                    cookies=context.cookies,
-                    stream=True,
                     timeout=HTTP_FILE_LOAD_TIMEOUT_SEC,
                 )
-            ).content
+            ).read()
             name = attachment_html["attachment-name"]
             attachments.append((file, name))
         return MailBody(text, attachments)
