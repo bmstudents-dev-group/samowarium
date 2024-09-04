@@ -1,4 +1,3 @@
-from http.client import HTTPResponse
 from telegram import Update, InputMediaDocument
 import telegram
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
@@ -231,7 +230,7 @@ class TelegramBot:
         telegram_id: int,
         message: str,
         format: str | None = None,
-        attachments: Optional[list[tuple[HTTPResponse, str]]] = None,
+        attachments: Optional[list[tuple[bytes, str]]] = None,
     ) -> None:
         is_sent = False
         log.debug(f'sending message "{message}" to {telegram_id} ...')
@@ -260,7 +259,7 @@ class TelegramBot:
                 await asyncio.sleep(TELEGRAM_SEND_RETRY_DELAY_SEC)
 
     async def send_attachments(
-        self, telegram_id: int, attachments: Optional[list[tuple[HTTPResponse, str]]]
+        self, telegram_id: int, attachments: Optional[list[tuple[bytes, str]]]
     ):
         media_group = []
         for attachment in attachments:
