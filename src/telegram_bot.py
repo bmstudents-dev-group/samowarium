@@ -51,6 +51,8 @@ AUTOREAD_OFF_PROMPT = "Письма не будут отмечаться про�
 
 MAX_TELEGRAM_MESSAGE_LENGTH = 4096
 
+HTTP_FILE_SEND_TIMEOUT_SEC = 60
+
 SAVE_PSW_CALLBACK = "SAVE_PSW"
 NO_SAVE_PSW_CALLBACK = "NO_SAVE_PSW"
 
@@ -271,7 +273,7 @@ class TelegramBot:
         )
         while not sent:
             try:
-                await self.application.bot.send_media_group(telegram_id, media_group)
+                await self.application.bot.send_media_group(telegram_id, media_group, read_timeout=HTTP_FILE_SEND_TIMEOUT_SEC, write_timeout=HTTP_FILE_SEND_TIMEOUT_SEC)
                 sent = True
                 log.info(f"sent attachments to {telegram_id}")
             except telegram.error.BadRequest as error:
