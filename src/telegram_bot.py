@@ -273,7 +273,12 @@ class TelegramBot:
         )
         while not sent:
             try:
-                await self.application.bot.send_media_group(telegram_id, media_group, read_timeout=HTTP_FILE_SEND_TIMEOUT_SEC, write_timeout=HTTP_FILE_SEND_TIMEOUT_SEC)
+                await self.application.bot.send_media_group(
+                    telegram_id,
+                    media_group,
+                    read_timeout=HTTP_FILE_SEND_TIMEOUT_SEC,
+                    write_timeout=HTTP_FILE_SEND_TIMEOUT_SEC,
+                )
                 sent = True
                 log.info(f"sent attachments to {telegram_id}")
             except telegram.error.BadRequest as error:
