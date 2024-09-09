@@ -166,11 +166,6 @@ class ClientHandler:
                 polling_context = await samoware_api.login(
                     self.context.samoware_login, samoware_password
                 )
-                if polling_context is None:
-                    log.info(
-                        f"unsuccessful login for user {self.context.samoware_login}"
-                    )
-                    return False
                 polling_context = await samoware_api.set_session_info(polling_context)
                 polling_context = await samoware_api.open_inbox(polling_context)
                 self.context.polling_context = polling_context
@@ -178,6 +173,9 @@ class ClientHandler:
                 self.db.set_handler_context(self.context)
                 log.info(f"successful login for user {self.context.samoware_login}")
                 return True
+            except UnauthorizedError:
+                log.info(f"unsuccessful login for user {self.context.samoware_login}")
+                return False
             except asyncio.CancelledError:
                 log.info("login cancelled")
                 return False
@@ -206,8 +204,8 @@ class ClientHandler:
             self.db.set_handler_context(self.context)
             log.info(f"successful revalidation for user {self.context.samoware_login}")
             return True
-        except Exception:
-            log.exception("exception on revalidation")
+        except UnauthorizedError:
+            log.exception("UnauthorizedError on revalidation")
             return False
 
     async def can_not_revalidate(self):
