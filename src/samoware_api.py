@@ -4,7 +4,6 @@ from datetime import datetime
 from http.client import HTTPResponse
 from typing import Self
 
-import requests
 import re
 import logging as log
 import bs4 as bs
@@ -97,7 +96,7 @@ class Mail:
         self.body = body
 
 
-def login(login: str, password: str) -> SamowarePollingContext | None:
+async def login(login: str, password: str) -> SamowarePollingContext | None:
     log.debug(f"logging in for {login}")
 
     url = "https://mailstudent.bmstu.ru/XIMSSLogin/"
@@ -115,19 +114,23 @@ def login(login: str, password: str) -> SamowarePollingContext | None:
         params["password"] = password
     if not env.is_ip_check_enabled():
         params["DisableIPWatch"] = "1"
-    response = requests.get(url, params)
 
-    tree = ET.fromstring(response.text)
-    if tree.find("session") is None:
-        log.debug(f"logging in response ({login}) does not have session tag")
-        return None
-    session = tree.find("session").attrib["urlID"]
+    async with ClientSession(
+        timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
+    ) as http_session:
+        response = await http_session.get(url, params=params)
 
-    log.debug(f"successful login for {login}")
-    return SamowarePollingContext(session=session)
+        tree = ET.fromstring(await response.text())
+        if tree.find("session") is None:
+            log.debug(f"logging in response ({login}) does not have session tag")
+            return None
+        session = tree.find("session").attrib["urlID"]
+
+        log.debug(f"successful login for {login}")
+        return SamowarePollingContext(session=session)
 
 
-def revalidate(login: str, session: str) -> SamowarePollingContext | None:
+async def revalidate(login: str, session: str) -> SamowarePollingContext | None:
     log.debug(f"revalidating session for {login}")
 
     url = "https://mailstudent.bmstu.ru/XIMSSLogin/"
@@ -142,17 +145,21 @@ def revalidate(login: str, session: str) -> SamowarePollingContext | None:
     }
     if not env.is_ip_check_enabled():
         params["DisableIPWatch"] = "1"
-    response = requests.get(url, params)
 
-    tree = ET.fromstring(response.text)
-    if tree.find("session") is None:
-        log.debug(f"revalidation response ({login}) does not have session tag")
-        return None
+    async with ClientSession(
+        timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
+    ) as http_session:
+        response = await http_session.get(url, params)
 
-    new_session = tree.find("session").attrib["urlID"]
-    log.debug(f"successful revalidation {login}")
+        tree = ET.fromstring(await response.text())
+        if tree.find("session") is None:
+            log.debug(f"revalidation response ({login}) does not have session tag")
+            return None
 
-    return SamowarePollingContext(session=new_session)
+        new_session = tree.find("session").attrib["urlID"]
+        log.debug(f"successful revalidation {login}")
+
+        return SamowarePollingContext(session=new_session)
 
 
 async def longpoll_updates(
@@ -183,7 +190,7 @@ async def longpoll_updates(
                     f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
                 )
                 raise HTTPError(
-                    url=url, code=response.status, msg=await response.text()
+                    url=url, code=response.status, msg=(await response.text())
                 )
             tree = ET.fromstring(response_text)
             ack_seq = context.ack_seq
@@ -195,203 +202,255 @@ async def longpoll_updates(
             )
 
 
-def get_new_mails(
+async def get_new_mails(
     context: SamowarePollingContext,
 ) -> tuple[list[MailHeader], SamowarePollingContext]:
-    url = f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}"
-    response = requests.get(
-        url=url,
-        data=f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{context.command_id}"/></XIMSS>',
+    async with ClientSession(
+        timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
         cookies=context.cookies,
-        timeout=HTTP_COMMON_TIMEOUT_SEC,
-    )
-    if response.status_code == 550:
-        log.warning(
-            f"received 550 code in getInboxUpdates - Samoware Unauthorized. response: {response.text}"
+    ) as http_session:
+        url = f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}"
+        response = await http_session.get(
+            url=url,
+            data=f'<XIMSS><folderSync folder="INBOX-MM-1" limit="300" id="{context.command_id}"/></XIMSS>',
+            cookies=context.cookies,
+            timeout=HTTP_COMMON_TIMEOUT_SEC,
         )
-        raise UnauthorizedError
-    if response.status_code != 200:
-        log.error(
-            f"received non 200 code in getInboxUpdates: {response.status_code}. response: {response.text}"
-        )
-        raise HTTPError(
-            url=url, code=response.status_code, msg=response.text, hdrs=None
-        )
-    tree = ET.fromstring(response.text)
-    mail_headers = []
-    for element in tree.findall("folderReport"):
-        log.debug("folderReport: " + str(ET.tostring(element, encoding="utf8")))
-        if element.attrib["mode"] == "added":
-            uid = element.attrib["UID"]
-            local_time = datetime.strptime(
-                element.find("INTERNALDATE").attrib["localTime"], "%Y%m%dT%H%M%S"
+        if response.status == 550:
+            log.warning(
+                f"received 550 code in getInboxUpdates - Samoware Unauthorized. response: {await response.text()}"
             )
-            utc_time = datetime.strptime(
-                element.find("INTERNALDATE").text, "%Y%m%dT%H%M%SZ"
+            raise UnauthorizedError
+        if response.status != 200:
+            log.error(
+                f"received non 200 code in getInboxUpdates: {response.status}. response: {await response.text()}"
             )
-            flags = element.find("FLAGS").text
-            from_mail = element.find("E-From").text
-            if "realName" in element.find("E-From").attrib:
-                from_name = element.find("E-From").attrib["realName"]
-            else:
-                from_name = element.find("E-From").text
-            if (
-                element.find("Subject") is not None
-                and element.find("Subject").text is not None
-            ):
-                subject = html.escape(element.find("Subject").text)
-            else:
-                subject = "Письмо без темы"
-            to = []
-            for el in element.findall("E-To"):
-                to_mail = el.text
-                if "realName" in el.attrib:
-                    to_name = el.attrib["realName"]
-                else:
-                    to_name = el.text
-                to.append((to_mail, to_name))
-
-            mail_headers.append(
-                MailHeader(
-                    flags=flags,
-                    from_mail=from_mail,
-                    from_name=from_name,
-                    local_time=local_time,
-                    subject=subject,
-                    recipients=to,
-                    uid=uid,
-                    utc_time=utc_time,
+            raise HTTPError(
+                url=url, code=response.status, msg=(await response.text()), hdrs=None
+            )
+        tree = ET.fromstring(await response.text())
+        mail_headers = []
+        for element in tree.findall("folderReport"):
+            log.debug("folderReport: " + str(ET.tostring(element, encoding="utf8")))
+            if element.attrib["mode"] == "added":
+                uid = element.attrib["UID"]
+                local_time = datetime.strptime(
+                    element.find("INTERNALDATE").attrib["localTime"], "%Y%m%dT%H%M%S"
                 )
+                utc_time = datetime.strptime(
+                    element.find("INTERNALDATE").text, "%Y%m%dT%H%M%SZ"
+                )
+                flags = element.find("FLAGS").text
+                from_mail = element.find("E-From").text
+                if "realName" in element.find("E-From").attrib:
+                    from_name = element.find("E-From").attrib["realName"]
+                else:
+                    from_name = element.find("E-From").text
+                if (
+                    element.find("Subject") is not None
+                    and element.find("Subject").text is not None
+                ):
+                    subject = html.escape(element.find("Subject").text)
+                else:
+                    subject = "Письмо без темы"
+                to = []
+                for el in element.findall("E-To"):
+                    to_mail = el.text
+                    if "realName" in el.attrib:
+                        to_name = el.attrib["realName"]
+                    else:
+                        to_name = el.text
+                    to.append((to_mail, to_name))
+
+                mail_headers.append(
+                    MailHeader(
+                        flags=flags,
+                        from_mail=from_mail,
+                        from_name=from_name,
+                        local_time=local_time,
+                        subject=subject,
+                        recipients=to,
+                        uid=uid,
+                        utc_time=utc_time,
+                    )
+                )
+        return (
+            mail_headers,
+            context.make_next(
+                request_id=context.request_id + 1,
+                rand=context.rand + 1,
+                command_id=context.command_id + 1,
+            ),
+        )
+
+
+async def set_session_info(context: SamowarePollingContext) -> SamowarePollingContext:
+    async with ClientSession(
+        timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
+        cookies=context.cookies,
+    ) as http_session:
+        response = await http_session.post(
+            url=f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}",
+            data='<XIMSS><prefsRead id="1"><name>Language</name></prefsRead></XIMSS>',
+        )
+        await http_session.post(
+            f"https://student.bmstu.ru/Session/{context.session}/sessionadmin.wcgp",
+            data={
+                "op": "setSessionInfo",
+                "paramType": "json",
+                "param": '{"platform":"Linux x86_64","clientName":"hSamoware","browser":"Firefox 122"}',
+                "session": context.session,
+            },
+        )
+        return context.make_next(
+            cookies=response.cookies,
+            request_id=context.request_id + 1,
+            rand=context.rand + 1,
+        )
+
+
+async def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
+    url = f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}"
+    data = f"""<XIMSS>
+            <listKnownValues id="{context.command_id}"/>
+            <mailboxList filter="%" pureFolder="yes" id="{context.command_id + 1}"/>
+            <mailboxList filter="%/%" pureFolder="yes" id="{context.command_id + 2}"/>
+            <folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{context.command_id + 3}">
+                <field>FLAGS</field>
+                <field>E-From</field>
+                <field>Subject</field>
+                <field>Pty</field>
+                <field>Content-Type</field>
+                <field>INTERNALDATE</field>
+                <field>SIZE</field>
+                <field>E-To</field>
+                <field>E-Cc</field>
+                <field>E-Reply-To</field>
+                <field>X-Color</field>
+                <field>Disposition-Notification-To</field>
+                <field>X-Request-DSN</field>
+                <field>References</field>
+                <field>Message-ID</field>
+            </folderOpen>
+            <setSessionOption name="reportMailboxChanges" value="yes" id="{context.command_id + 4}"/>
+        </XIMSS>"""
+    async with ClientSession(
+        timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
+        cookies=context.cookies,
+    ) as http_session:
+        response = await http_session.get(url, data=data)
+        if response.status == 550:
+            log.error(
+                f"received 550 code in openInbox - Samoware Unauthorized. response: {await response.text()}"
             )
-    return (
-        mail_headers,
-        context.make_next(
+            raise UnauthorizedError
+        if response.status != 200:
+            log.error(
+                f"received non 200 code in openInbox: {response.status}. response: {await response.text()}"
+            )
+            raise HTTPError(
+                url=url, code=response.status, msg=(await response.text()), hdrs=None
+            )
+
+        return context.make_next(
+            request_id=context.request_id + 1,
+            rand=context.rand + 1,
+            command_id=context.command_id + 5,
+        )
+
+
+async def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> MailBody:
+    url = f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}"
+    async with ClientSession(
+        timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
+        cookies=context.cookies,
+    ) as http_session:
+        response = await http_session.get(url)
+        if response.status == 550:
+            log.error(
+                f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {await response.text()}"
+            )
+            raise UnauthorizedError
+        if response.status != 200:
+            log.error(
+                f"received non 200 code in getMailBodyById: {response.status}\nresponse: {await response.text()}"
+            )
+            raise HTTPError(
+                url=url, code=response.status, msg=(await response.text()), hdrs=None
+            )
+        tree = bs.BeautifulSoup((await response.text()), "html.parser")
+        mailBodiesHtml = tree.findAll("div", {"class": "samoware-RFC822-body"})
+
+        text = ""
+        for mailBodyHtml in mailBodiesHtml:
+            log.debug("mail body: " + str(mailBodyHtml.encode()))
+            foundTextBeg = False
+            for element in mailBodyHtml.children:
+                if (
+                    isinstance(element, bs.Tag)
+                    and element.has_attr("class")
+                    and "textBeg" in element["class"]
+                ):
+                    foundTextBeg = True
+                    log.debug("found textBeg")
+                if (
+                    isinstance(element, bs.Tag)
+                    and element.has_attr("class")
+                    and "textEnd" in element["class"]
+                ):
+                    log.debug("found textEnd")
+                    break
+                if foundTextBeg:
+                    text += html_element_to_text(element)
+
+        text = re.sub(r"(\r)+", "\r", text).strip()
+        text = re.sub(r"(\n)+", "\n", text).strip()
+        text = text.replace("\r", "\n\n")
+        text = re.sub(r"(\n){2,}", "\n\n", text).strip()
+
+        attachments = []
+        for attachment_html in tree.find_all("cg-message-attachment"):
+            attachment_url = (
+                "https://student.bmstu.ru" + attachment_html["attachment-ref"]
+            )
+            file = await (
+                await http_session.get(
+                    attachment_url,
+                    timeout=HTTP_FILE_LOAD_TIMEOUT_SEC,
+                )
+            ).read()
+            name = attachment_html["attachment-name"]
+            attachments.append((file, name))
+        return MailBody(text, attachments)
+
+
+async def mark_as_read(
+    context: SamowarePollingContext, uid: str
+) -> SamowarePollingContext:
+    url = f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}"
+    data = f'<XIMSS><messageMark flags="Read" folder="INBOX-MM-1" id="{context.command_id}"><UID>{uid}</UID></messageMark></XIMSS>'
+    async with ClientSession(
+        timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
+        cookies=context.cookies,
+    ) as http_session:
+        response = await http_session.post(url=url, data=data)
+        if response.status == 550:
+            log.error(
+                f"received 550 code in mark_as_read - Samoware Unauthorized\nresponse: {await response.text()}"
+            )
+            raise UnauthorizedError
+        if response.status != 200:
+            log.error(
+                f"received non 200 code in mark_as_read: {response.status}\nresponse: {await response.text()}"
+            )
+            raise HTTPError(
+                url=url, code=response.status, msg=(await response.text()), hdrs=None
+            )
+        return context.make_next(
             request_id=context.request_id + 1,
             rand=context.rand + 1,
             command_id=context.command_id + 1,
-        ),
-    )
-
-
-def set_session_info(context: SamowarePollingContext) -> SamowarePollingContext:
-    response = requests.post(
-        f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}",
-        '<XIMSS><prefsRead id="1"><name>Language</name></prefsRead></XIMSS>',
-        timeout=HTTP_COMMON_TIMEOUT_SEC,
-    )
-    requests.post(
-        f"https://student.bmstu.ru/Session/{context.session}/sessionadmin.wcgp",
-        files=(
-            ("op", (None, "setSessionInfo")),
-            ("paramType", (None, "json")),
-            (
-                "param",
-                (
-                    None,
-                    '{"platform":"Linux x86_64","clientName":"hSamoware","browser":"Firefox 122"}',
-                ),
-            ),
-            ("session", (None, context.session)),
-        ),
-        cookies=response.cookies,
-        timeout=HTTP_COMMON_TIMEOUT_SEC,
-    )
-    return context.make_next(
-        cookies=response.cookies.get_dict(),
-        request_id=context.request_id + 1,
-        rand=context.rand + 1,
-    )
-
-
-def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
-    url = f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}"
-    response = requests.get(
-        url=url,
-        data=f'<XIMSS><listKnownValues id="{context.command_id}"/><mailboxList filter="%" pureFolder="yes" id="{context.command_id + 1}"/><mailboxList filter="%/%" pureFolder="yes" id="{context.command_id + 2}"/><folderOpen mailbox="INBOX" sortField="INTERNALDATE" sortOrder="desc" folder="INBOX-MM-1" id="{context.command_id + 3}"><field>FLAGS</field><field>E-From</field><field>Subject</field><field>Pty</field><field>Content-Type</field><field>INTERNALDATE</field><field>SIZE</field><field>E-To</field><field>E-Cc</field><field>E-Reply-To</field><field>X-Color</field><field>Disposition-Notification-To</field><field>X-Request-DSN</field><field>References</field><field>Message-ID</field></folderOpen><setSessionOption name="reportMailboxChanges" value="yes" id="{context.command_id + 4}"/></XIMSS>',
-        cookies=context.cookies,
-        timeout=HTTP_COMMON_TIMEOUT_SEC,
-    )
-    if response.status_code == 550:
-        log.error(
-            f"received 550 code in openInbox - Samoware Unauthorized. response: {response.text}"
         )
-        raise UnauthorizedError
-    if response.status_code != 200:
-        log.error(
-            f"received non 200 code in openInbox: {response.status_code}. response: {response.text}"
-        )
-        raise HTTPError(
-            url=url, code=response.status_code, msg=response.text, hdrs=None
-        )
-
-    return context.make_next(
-        request_id=context.request_id + 1,
-        rand=context.rand + 1,
-        command_id=context.command_id + 5,
-    )
-
-
-def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> MailBody:
-    url = f"https://student.bmstu.ru/Session/{context.session}/FORMAT/Samoware/INBOX-MM-1/{uid}"
-    response = requests.get(
-        url=url,
-        cookies=context.cookies,
-        timeout=HTTP_COMMON_TIMEOUT_SEC,
-    )
-    if response.status_code == 550:
-        log.error(
-            f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {response.text}"
-        )
-        raise UnauthorizedError
-    if response.status_code != 200:
-        log.error(
-            f"received non 200 code in getMailBodyById: {response.status_code}\nresponse: {response.text}"
-        )
-        raise HTTPError(
-            url=url, code=response.status_code, msg=response.text, hdrs=None
-        )
-    tree = bs.BeautifulSoup(response.text, "html.parser")
-    mailBodiesHtml = tree.findAll("div", {"class": "samoware-RFC822-body"})
-
-    text = ""
-    for mailBodyHtml in mailBodiesHtml:
-        log.debug("mail body: " + str(mailBodyHtml.encode()))
-        foundTextBeg = False
-        for element in mailBodyHtml.children:
-            if (
-                isinstance(element, bs.Tag)
-                and element.has_attr("class")
-                and "textBeg" in element["class"]
-            ):
-                foundTextBeg = True
-                log.debug("found textBeg")
-            if (
-                isinstance(element, bs.Tag)
-                and element.has_attr("class")
-                and "textEnd" in element["class"]
-            ):
-                log.debug("found textEnd")
-                break
-            if foundTextBeg:
-                text += html_element_to_text(element)
-
-    text = re.sub(r"(\r)+", "\r", text).strip()
-    text = re.sub(r"(\n)+", "\n", text).strip()
-    text = text.replace("\r", "\n\n")
-    text = re.sub(r"(\n){2,}", "\n\n", text).strip()
-
-    attachments = []
-    for attachment_html in tree.find_all("cg-message-attachment"):
-        attachment_url = "https://student.bmstu.ru" + attachment_html["attachment-ref"]
-        file = requests.get(
-            attachment_url,
-            cookies=context.cookies,
-            stream=True,
-            timeout=HTTP_FILE_LOAD_TIMEOUT_SEC,
-        ).raw
-        name = attachment_html["attachment-name"]
-        attachments.append((file, name))
-    return MailBody(text, attachments)
 
 
 def html_element_to_text(element):

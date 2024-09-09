@@ -1,4 +1,3 @@
-from http.client import HTTPResponse
 from telegram import Update, InputMediaDocument
 import telegram
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
@@ -46,10 +45,21 @@ SAVE_PASSWORD_PROMPT = (
 )
 PASSWORD_SAVED_PROMPT = "Пароль сохранен."
 
+AUTOREAD_PROMPT = (
+    "Автоматически отмечать приходящие письма прочитанными? Включено по умолчанию."
+)
+AUTOREAD_ON_PROMPT = "Письма будут отмечаться прочитанными автоматически."
+AUTOREAD_OFF_PROMPT = "Письма не будут отмечаться прочитанными."
+
 MAX_TELEGRAM_MESSAGE_LENGTH = 4096
+
+HTTP_FILE_SEND_TIMEOUT_SEC = 60
 
 SAVE_PSW_CALLBACK = "SAVE_PSW"
 NO_SAVE_PSW_CALLBACK = "NO_SAVE_PSW"
+
+AUTOREAD_ON_CALLBACK = "AUTOREAD_ON"
+AUTOREAD_OFF_CALLBACK = "AUTOREAD_OFF"
 
 
 class TelegramBot:
@@ -77,6 +87,18 @@ class TelegramBot:
             log.info(f"password for user {update.effective_user.id} is saved")
         elif command == NO_SAVE_PSW_CALLBACK:
             log.info(f"password for user {update.effective_user.id} is not saved")
+        elif command == AUTOREAD_ON_CALLBACK:
+            self.db.set_autoread(update.effective_user.id, True)
+            await self.send_message(
+                update.effective_user.id, AUTOREAD_ON_PROMPT, MARKDOWN_FORMAT
+            )
+            log.info(f"autoread for user {update.effective_user.id} is enabled")
+        elif command == AUTOREAD_OFF_CALLBACK:
+            self.db.set_autoread(update.effective_user.id, False)
+            await self.send_message(
+                update.effective_user.id, AUTOREAD_OFF_PROMPT, MARKDOWN_FORMAT
+            )
+            log.info(f"autoread for user {update.effective_user.id} is not enabled")
         await self.application.bot.delete_message(
             update.effective_chat.id, update.callback_query.message.message_id
         )
@@ -178,6 +200,24 @@ class TelegramBot:
                     ]
                 ),
             )
+            await self.application.bot.send_message(
+                update.effective_chat.id,
+                AUTOREAD_PROMPT,
+                parse_mode=MARKDOWN_FORMAT,
+                reply_markup=telegram.InlineKeyboardMarkup(
+                    [
+                        [
+                            telegram.InlineKeyboardButton(
+                                text="Да", callback_data=AUTOREAD_ON_CALLBACK
+                            ),
+                            telegram.InlineKeyboardButton(
+                                text="Нет",
+                                callback_data=AUTOREAD_OFF_CALLBACK,
+                            ),
+                        ]
+                    ]
+                ),
+            )
         await self.application.bot.delete_messages(
             update.effective_chat.id, [update.effective_message.id, wait_message.id]
         )
@@ -194,7 +234,7 @@ class TelegramBot:
         telegram_id: int,
         message: str,
         format: str | None = None,
-        attachments: Optional[list[tuple[HTTPResponse, str]]] = None,
+        attachments: Optional[list[tuple[bytes, str]]] = None,
     ) -> None:
         is_sent = False
         log.debug(f'sending message "{message}" to {telegram_id} ...')
@@ -223,7 +263,7 @@ class TelegramBot:
                 await asyncio.sleep(TELEGRAM_SEND_RETRY_DELAY_SEC)
 
     async def send_attachments(
-        self, telegram_id: int, attachments: Optional[list[tuple[HTTPResponse, str]]]
+        self, telegram_id: int, attachments: Optional[list[tuple[bytes, str]]]
     ):
         media_group = []
         for attachment in attachments:
@@ -235,7 +275,12 @@ class TelegramBot:
         )
         while not sent:
             try:
-                await self.application.bot.send_media_group(telegram_id, media_group)
+                await self.application.bot.send_media_group(
+                    telegram_id,
+                    media_group,
+                    read_timeout=HTTP_FILE_SEND_TIMEOUT_SEC,
+                    write_timeout=HTTP_FILE_SEND_TIMEOUT_SEC,
+                )
                 sent = True
                 log.info(f"sent attachments to {telegram_id}")
             except telegram.error.BadRequest as error:
