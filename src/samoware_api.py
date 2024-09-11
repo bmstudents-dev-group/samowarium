@@ -123,7 +123,20 @@ async def login(login: str, password: str) -> SamowarePollingContext | None:
         tree = ET.fromstring(await response.text())
         if tree.find("session") is None:
             log.debug(f"logging in response ({login}) does not have session tag")
-            return None
+            if (
+                tree.find("response").attrib["errorText"]
+                == "incorrect password or account name"
+            ):
+                raise UnauthorizedError
+            else:
+                raise HTTPError(
+                    url=url,
+                    code=response.status,
+                    msg=(await response.text()),
+                    hdrs=None,
+                    fp=None,
+                )
+
         session = tree.find("session").attrib["urlID"]
 
         log.debug(f"successful login for {login}")
@@ -154,7 +167,15 @@ async def revalidate(login: str, session: str) -> SamowarePollingContext | None:
         tree = ET.fromstring(await response.text())
         if tree.find("session") is None:
             log.debug(f"revalidation response ({login}) does not have session tag")
-            return None
+            if (
+                tree.find("response").attrib["errorText"]
+                == "incorrect password or account name"
+            ):
+                raise UnauthorizedError
+            else:
+                raise HTTPError(
+                    url=url, code=response.status, msg=(await response.text())
+                )
 
         new_session = tree.find("session").attrib["urlID"]
         log.debug(f"successful revalidation {login}")
