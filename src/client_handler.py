@@ -120,7 +120,7 @@ class ClientHandler:
                         self.context.last_revalidate + REVALIDATE_INTERVAL,
                         timezone.utc,
                     ) < datetime.now(timezone.utc):
-                        is_successful_revalidation = self.revalidate()
+                        is_successful_revalidation = await self.revalidate()
                         if not is_successful_revalidation:
                             await self.can_not_revalidate()
                             self.db.remove_client(self.context.telegram_id)
