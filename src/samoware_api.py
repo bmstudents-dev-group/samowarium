@@ -162,7 +162,7 @@ async def revalidate(login: str, session: str) -> SamowarePollingContext | None:
     async with ClientSession(
         timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
     ) as http_session:
-        response = await http_session.get(url, params)
+        response = await http_session.get(url, params=params)
 
         tree = ET.fromstring(await response.text())
         if tree.find("session") is None:
