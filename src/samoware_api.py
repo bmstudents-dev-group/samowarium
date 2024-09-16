@@ -432,7 +432,6 @@ async def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> Mail
         if AGGRESSIVE_FORMAT_LETTER:
             text = text.replace("\n\xa0\n", "\n\n")
         text = re.sub(r"(\n){2,}", "\n\n", text).strip()
-        print(text)
 
         attachments = []
         for attachment_html in tree.find_all("cg-message-attachment"):
