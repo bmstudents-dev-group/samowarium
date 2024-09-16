@@ -9,6 +9,7 @@ from samoware_api import SamowarePollingContext
 from context import Context
 import util
 
+
 def map_context_to_dict(context: Context) -> dict:
     return {
         "login": context.samoware_login,
