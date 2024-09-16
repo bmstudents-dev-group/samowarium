@@ -77,7 +77,6 @@ class ClientHandler:
         return ClientHandler(message_sender, db, context)
 
     async def start_handling(self) -> asyncio.Task:
-        await self.revalidate()
         self.polling_task = asyncio.create_task(self.polling())
         return self.polling_task
 
