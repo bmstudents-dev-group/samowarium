@@ -15,7 +15,7 @@ def map_context_to_dict(context: Context) -> dict:
         "login": context.samoware_login,
         "ack_seq": context.polling_context.ack_seq,
         "command_id": context.polling_context.command_id,
-        "cookies": context.polling_context.cookies.keys(),
+        "cookies": context.polling_context.cookies.output(header=""),
         "last_revalidate": context.last_revalidate.isoformat(),
         "request_id": context.polling_context.request_id,
         "session": context.polling_context.session,
@@ -24,11 +24,13 @@ def map_context_to_dict(context: Context) -> dict:
 
 
 def map_context_from_dict(d: dict, telegram_id: int) -> Context:
+    cookies = SimpleCookie()
+    cookies.load(d["cookies"])
     return Context(
         polling_context=SamowarePollingContext(
             ack_seq=d["ack_seq"],
             command_id=d["command_id"],
-            cookies=SimpleCookie.fromkeys(d["cookies"]),
+            cookies=cookies,
             rand=d["rand"],
             session=d["session"],
             request_id=d["request_id"],

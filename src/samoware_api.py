@@ -2,6 +2,7 @@
 import html
 from datetime import datetime
 from http.client import HTTPResponse
+from http.cookies import SimpleCookie
 from typing import Self
 
 import re
@@ -36,7 +37,7 @@ class SamowarePollingContext:
         rand: int = 0,
         command_id: int = 0,
         ack_seq: int = 0,
-        cookies: dict = {},
+        cookies: SimpleCookie = SimpleCookie(),
     ) -> None:
         self.session = session
         self.request_id = request_id
@@ -52,7 +53,7 @@ class SamowarePollingContext:
         rand: int | None = None,
         command_id: int | None = None,
         ack_seq: int | None = None,
-        cookies: dict | None = None,
+        cookies: SimpleCookie | None = None,
     ) -> Self:
         return SamowarePollingContext(
             session=self.session if session is None else session,
