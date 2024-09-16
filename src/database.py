@@ -9,6 +9,7 @@ from samoware_api import SamowarePollingContext
 from context import Context
 import util
 
+
 def map_context_to_dict(context: Context) -> dict:
     return {
         "login": context.samoware_login,
@@ -82,7 +83,6 @@ class Database:
         log.debug(f"set password for the client {telegram_id}")
 
     def set_handler_context(self, context: Context) -> None:
-        print(type(context.polling_context.cookies))
         telegram_id = context.telegram_id
         context_encoded = dumps(map_context_to_dict(context))
         self.connection.execute(
@@ -105,7 +105,6 @@ class Database:
         (context_encoded,) = row
         raw_context = map_context_from_dict(loads(context_encoded), telegram_id)
         log.debug(f"requested samoware context for the client {telegram_id}")
-        print(type(raw_context.polling_context.cookies))
         return raw_context
 
     def get_password(self, telegram_id: int) -> str | None:
