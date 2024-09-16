@@ -21,6 +21,8 @@ from const import (
 
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
 
+AGGRESSIVE_FORMAT_LETTER = True
+
 
 class UnauthorizedError(Exception):
     pass
@@ -427,6 +429,8 @@ async def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> Mail
         text = re.sub(r"(\r)+", "\r", text).strip()
         text = re.sub(r"(\n)+", "\n", text).strip()
         text = text.replace("\r", "\n\n")
+        if AGGRESSIVE_FORMAT_LETTER:
+            text = text.replace("\n\xa0\n", "\n\n")
         text = re.sub(r"(\n){2,}", "\n\n", text).strip()
 
         attachments = []
