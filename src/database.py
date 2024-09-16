@@ -1,3 +1,4 @@
+from http.cookies import SimpleCookie
 import logging as log
 from sqlite3 import connect
 from json import dumps, loads
@@ -8,13 +9,12 @@ from samoware_api import SamowarePollingContext
 from context import Context
 import util
 
-
 def map_context_to_dict(context: Context) -> dict:
     return {
         "login": context.samoware_login,
         "ack_seq": context.polling_context.ack_seq,
         "command_id": context.polling_context.command_id,
-        "cookies": context.polling_context.cookies,
+        "cookies": context.polling_context.cookies.keys(),
         "last_revalidate": context.last_revalidate.isoformat(),
         "request_id": context.polling_context.request_id,
         "session": context.polling_context.session,
@@ -27,7 +27,7 @@ def map_context_from_dict(d: dict, telegram_id: int) -> Context:
         polling_context=SamowarePollingContext(
             ack_seq=d["ack_seq"],
             command_id=d["command_id"],
-            cookies=d["cookies"],
+            cookies=SimpleCookie.fromkeys(d["cookies"]),
             rand=d["rand"],
             session=d["session"],
             request_id=d["request_id"],
@@ -82,6 +82,7 @@ class Database:
         log.debug(f"set password for the client {telegram_id}")
 
     def set_handler_context(self, context: Context) -> None:
+        print(type(context.polling_context.cookies))
         telegram_id = context.telegram_id
         context_encoded = dumps(map_context_to_dict(context))
         self.connection.execute(
@@ -104,6 +105,7 @@ class Database:
         (context_encoded,) = row
         raw_context = map_context_from_dict(loads(context_encoded), telegram_id)
         log.debug(f"requested samoware context for the client {telegram_id}")
+        print(type(raw_context.polling_context.cookies))
         return raw_context
 
     def get_password(self, telegram_id: int) -> str | None:
