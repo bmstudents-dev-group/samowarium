@@ -52,6 +52,13 @@ class Database:
     def __exit__(self, *args) -> None:
         self.close()
 
+    def is_open(self) -> bool:
+        try:
+            self.connection.cursor()
+            return True
+        except:
+            return False
+
     def initialize(self) -> None:
         log.debug("initializing db...")
         self.connection = connect(self.path, check_same_thread=False)
@@ -130,7 +137,7 @@ class Database:
         log.debug(f"client {telegram_id} is active: {is_active}")
         return is_active
 
-    def get_all_clients(self) -> list[tuple[int, Context, str | None]]:
+    def get_all_clients(self) -> list[tuple[int, Context]]:
         def map_client_from_tuple(client):
             (telegram_id, context) = client
             return (
@@ -151,6 +158,32 @@ class Database:
         )
         log.debug(
             f"fetching all clients from database, an amount of the clients {len(clients)}"
+        )
+        return clients
+    
+    def get_all_clients_stat(self) -> list[tuple[int, Context, bool, bool]]:
+        def map_client_from_tuple(client):
+            (telegram_id, context, password, autoread) = client
+            return (
+                telegram_id,
+                map_context_from_dict(
+                    loads(context),
+                    telegram_id,
+                ),
+                password != None,
+                bool(autoread),
+            )
+
+        clients = list(
+            map(
+                map_client_from_tuple,
+                self.connection.execute(
+                    "SELECT telegram_id, samoware_context, password, autoread FROM clients"
+                ).fetchall(),
+            )
+        )
+        log.debug(
+            f"fetching all clients from database for gathering statistics, an amount of the clients {len(clients)}"
         )
         return clients
 

@@ -19,6 +19,7 @@ from samoware_api import (
     UnauthorizedError,
 )
 from util import MessageSender
+import metrics
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
@@ -63,6 +64,7 @@ class ClientHandler:
             message_sender, db, Context(telegram_id, samoware_login)
         )
         is_successful_login = await handler.login(samoware_password)
+        metrics.login_metric.labels(is_successful=is_successful_login).inc()
         if not is_successful_login:
             await message_sender(telegram_id, WRONG_CREDS_PROMPT, MARKDOWN_FORMAT)
             return None
@@ -86,6 +88,7 @@ class ClientHandler:
     async def stop_handling(self) -> None:
         if not (self.polling_task.cancelled() or self.polling_task.done()):
             self.polling_task.cancel()
+            metrics.logout_metric.inc()
         await asyncio.wait([self.polling_task])
 
     async def polling(self) -> None:
@@ -121,6 +124,7 @@ class ClientHandler:
                         timezone.utc,
                     ) < datetime.now(timezone.utc):
                         is_successful_revalidation = await self.revalidate()
+                        metrics.revalidation_metric.labels(is_successful=is_successful_revalidation).inc()
                         if not is_successful_revalidation:
                             await self.can_not_revalidate()
                             self.db.remove_client(self.context.telegram_id)
@@ -136,6 +140,7 @@ class ClientHandler:
                         self.db.remove_client(self.context.telegram_id)
                         return
                     is_successful_relogin = await self.login(samoware_password)
+                    metrics.relogin_metric.labels(is_successful=is_successful_relogin).inc()
                     if not is_successful_relogin:
                         await self.can_not_relogin()
                         self.db.remove_client(self.context.telegram_id)

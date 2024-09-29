@@ -1,4 +1,4 @@
-# TODO: async get post
+# TODO: причесать вызовы aiohttp
 import html
 from datetime import datetime
 from http.client import HTTPResponse
@@ -19,6 +19,7 @@ from const import (
     HTTP_FILE_LOAD_TIMEOUT_SEC,
     HTTP_TOTAL_LONGPOLL_TIMEOUT_SEC,
 )
+import metrics
 
 SESSION_TOKEN_PATTERN = re.compile("^[0-9]{6}-[a-zA-Z0-9]{20}$")
 
@@ -122,6 +123,7 @@ async def login(login: str, password: str) -> SamowarePollingContext | None:
         timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
     ) as http_session:
         response = await http_session.get(url, params=params)
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
 
         tree = ET.fromstring(await response.text())
         if tree.find("session") is None:
@@ -166,6 +168,7 @@ async def revalidate(login: str, session: str) -> SamowarePollingContext | None:
         timeout=ClientTimeout(sock_read=HTTP_COMMON_TIMEOUT_SEC),
     ) as http_session:
         response = await http_session.get(url, params=params)
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
 
         tree = ET.fromstring(await response.text())
         if tree.find("session") is None:
@@ -196,34 +199,37 @@ async def longpoll_updates(
         )
     ) as http_session:
         url = f"https://student.bmstu.ru/Session/{context.session}/?ackSeq={context.ack_seq}&maxWait=20&random={context.rand}"
-        async with http_session.get(
+        response = await http_session.get(
             url=url,
             cookies=context.cookies,
-        ) as response:
-            response_text = await response.text()
-            log.debug(
-                f"samoware longpoll response code: {response.status}, text: {response_text}"
+        )
+
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
+        response_text = await response.text()
+        log.debug(
+            f"samoware longpoll response code: {response.status}, text: {response_text}"
+        )
+        if response.status == 550:
+            log.warning(
+                f"received 550 code in longPollUpdates - Samoware Unauthorized. response: {response_text}"
             )
-            if response.status == 550:
-                log.warning(
-                    f"received 550 code in longPollUpdates - Samoware Unauthorized. response: {response_text}"
-                )
-                raise UnauthorizedError
-            if response.status != 200:
-                log.error(
-                    f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
-                )
-                raise HTTPError(
-                    url=url, code=response.status, msg=(await response.text())
-                )
-            tree = ET.fromstring(response_text)
-            ack_seq = context.ack_seq
-            if "respSeq" in tree.attrib:
-                ack_seq = int(tree.attrib["respSeq"])
-            return (
-                response_text,
-                context.make_next(ack_seq=ack_seq, rand=context.rand + 1),
+            metrics.unauthorized_metric.inc()
+            raise UnauthorizedError
+        if response.status != 200:
+            log.error(
+                f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
             )
+            raise HTTPError(
+                url=url, code=response.status, msg=(await response.text())
+            )
+        tree = ET.fromstring(response_text)
+        ack_seq = context.ack_seq
+        if "respSeq" in tree.attrib:
+            ack_seq = int(tree.attrib["respSeq"])
+        return (
+            response_text,
+            context.make_next(ack_seq=ack_seq, rand=context.rand + 1),
+        )
 
 
 async def get_new_mails(
@@ -240,6 +246,8 @@ async def get_new_mails(
             cookies=context.cookies,
             timeout=HTTP_COMMON_TIMEOUT_SEC,
         )
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
+
         if response.status == 550:
             log.warning(
                 f"received 550 code in getInboxUpdates - Samoware Unauthorized. response: {await response.text()}"
@@ -317,6 +325,8 @@ async def set_session_info(context: SamowarePollingContext) -> SamowarePollingCo
             url=f"https://student.bmstu.ru/Session/{context.session}/sync?reqSeq={context.request_id}&random={context.rand}",
             data='<XIMSS><prefsRead id="1"><name>Language</name></prefsRead></XIMSS>',
         )
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
+
         await http_session.post(
             f"https://student.bmstu.ru/Session/{context.session}/sessionadmin.wcgp",
             data={
@@ -363,6 +373,8 @@ async def open_inbox(context: SamowarePollingContext) -> SamowarePollingContext:
         cookies=context.cookies,
     ) as http_session:
         response = await http_session.get(url, data=data)
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
+
         if response.status == 550:
             log.error(
                 f"received 550 code in openInbox - Samoware Unauthorized. response: {await response.text()}"
@@ -390,6 +402,8 @@ async def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> Mail
         cookies=context.cookies,
     ) as http_session:
         response = await http_session.get(url)
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()   
+    
         if response.status == 550:
             log.error(
                 f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {await response.text()}"
@@ -460,6 +474,8 @@ async def mark_as_read(
         cookies=context.cookies,
     ) as http_session:
         response = await http_session.post(url=url, data=data)
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
+        
         if response.status == 550:
             log.error(
                 f"received 550 code in mark_as_read - Samoware Unauthorized\nresponse: {await response.text()}"
