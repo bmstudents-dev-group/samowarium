@@ -170,7 +170,7 @@ class Database:
                     loads(context),
                     telegram_id,
                 ),
-                password != None,
+                password is not None,
                 bool(autoread),
             )
 
