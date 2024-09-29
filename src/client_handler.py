@@ -124,7 +124,9 @@ class ClientHandler:
                         timezone.utc,
                     ) < datetime.now(timezone.utc):
                         is_successful_revalidation = await self.revalidate()
-                        metrics.revalidation_metric.labels(is_successful=is_successful_revalidation).inc()
+                        metrics.revalidation_metric.labels(
+                            is_successful=is_successful_revalidation
+                        ).inc()
                         if not is_successful_revalidation:
                             await self.can_not_revalidate()
                             self.db.remove_client(self.context.telegram_id)
@@ -140,7 +142,9 @@ class ClientHandler:
                         self.db.remove_client(self.context.telegram_id)
                         return
                     is_successful_relogin = await self.login(samoware_password)
-                    metrics.relogin_metric.labels(is_successful=is_successful_relogin).inc()
+                    metrics.relogin_metric.labels(
+                        is_successful=is_successful_relogin
+                    ).inc()
                     if not is_successful_relogin:
                         await self.can_not_relogin()
                         self.db.remove_client(self.context.telegram_id)

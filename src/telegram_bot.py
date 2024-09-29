@@ -143,7 +143,7 @@ class TelegramBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         log.debug(f"received /start from {update.effective_user.id}")
-        metrics.incoming_commands_metric.labels(command_name='start').inc()
+        metrics.incoming_commands_metric.labels(command_name="start").inc()
         await update.message.reply_markdown(START_PROMPT)
 
     async def stop_command(
@@ -155,14 +155,14 @@ class TelegramBot:
         self.db.remove_client(
             telegram_id
         )  # TODO: не удалять запись, а удалять только контекст и пароль
-        metrics.incoming_commands_metric.labels(command_name='stop').inc()
+        metrics.incoming_commands_metric.labels(command_name="stop").inc()
         await update.message.reply_markdown(STOP_PROMPT)
 
     async def login_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         log.debug(f"received /login from {update.effective_user.id}")
-        metrics.incoming_commands_metric.labels(command_name='login').inc()
+        metrics.incoming_commands_metric.labels(command_name="login").inc()
         if context.args is None or len(context.args) != 2:
             log.debug(
                 f"client {update.effective_user.id} entered login and password in wrong format"
@@ -229,7 +229,7 @@ class TelegramBot:
     async def about_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        metrics.incoming_commands_metric.labels(command_name='about').inc()
+        metrics.incoming_commands_metric.labels(command_name="about").inc()
         await update.message.reply_markdown(
             ABOUT_PROMPT.format(env.get_profile(), env.get_version())
         )

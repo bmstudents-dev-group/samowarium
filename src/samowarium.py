@@ -21,7 +21,9 @@ class Application:
         self.db.initialize()
         self.bot = TelegramBot(self.db)
         await self.bot.start_bot()
-        self.gathering_metric_task = asyncio.create_task(self.gather_clients_amount_metric())
+        self.gathering_metric_task = asyncio.create_task(
+            self.gather_clients_amount_metric()
+        )
         self.setupShutdown(asyncio.get_event_loop())
 
     def setupShutdown(self, event_loop: asyncio.AbstractEventLoop):
@@ -48,7 +50,9 @@ class Application:
                     clients_amount_metric.labels(pswd=pswd, autoread=autoread).set(
                         len(
                             list(
-                                filter(lambda x: x[2] == pswd and x[3] == autoread, clients)
+                                filter(
+                                    lambda x: x[2] == pswd and x[3] == autoread, clients
+                                )
                             )
                         )
                     )
@@ -75,6 +79,7 @@ def setup_logger():
     class MetricsHandler(logging.Handler):
         def emit(self, record):
             log_metric.labels(level=record.levelname).inc()
+
     logging.getLogger("root").addHandler(MetricsHandler())
 
 

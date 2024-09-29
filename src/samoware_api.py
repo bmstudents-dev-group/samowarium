@@ -219,9 +219,7 @@ async def longpoll_updates(
             log.error(
                 f"received non 200 code in longPollUpdates: {response.status}. response: {response_text}"
             )
-            raise HTTPError(
-                url=url, code=response.status, msg=(await response.text())
-            )
+            raise HTTPError(url=url, code=response.status, msg=(await response.text()))
         tree = ET.fromstring(response_text)
         ack_seq = context.ack_seq
         if "respSeq" in tree.attrib:
@@ -402,8 +400,8 @@ async def get_mail_body_by_id(context: SamowarePollingContext, uid: str) -> Mail
         cookies=context.cookies,
     ) as http_session:
         response = await http_session.get(url)
-        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()   
-    
+        metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
+
         if response.status == 550:
             log.error(
                 f"received 550 code in getMailBodyById - Samoware Unauthorized\nresponse: {await response.text()}"
@@ -475,7 +473,7 @@ async def mark_as_read(
     ) as http_session:
         response = await http_session.post(url=url, data=data)
         metrics.samoware_response_status_code_metric.labels(sc=response.status).inc()
-        
+
         if response.status == 550:
             log.error(
                 f"received 550 code in mark_as_read - Samoware Unauthorized\nresponse: {await response.text()}"

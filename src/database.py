@@ -160,7 +160,7 @@ class Database:
             f"fetching all clients from database, an amount of the clients {len(clients)}"
         )
         return clients
-    
+
     def get_all_clients_stat(self) -> list[tuple[int, Context, bool, bool]]:
         def map_client_from_tuple(client):
             (telegram_id, context, password, autoread) = client
