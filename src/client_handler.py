@@ -201,7 +201,9 @@ class ClientHandler:
                 log.info("login cancelled")
                 return False
             except Exception as error:
-                log.exception(f"retry_count={retry_count}. exception on login. retrying in {HTTP_RETRY_DELAY_SEC}...")
+                log.exception(
+                    f"retry_count={retry_count}. exception on login. retrying in {HTTP_RETRY_DELAY_SEC}..."
+                )
                 client_handler_errors_metric.labels(type=type(error).__name__).inc()
                 retry_count += 1
                 await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
