@@ -213,7 +213,6 @@ async def longpoll_updates(
             log.warning(
                 f"received 550 code in longPollUpdates - Samoware Unauthorized. response: {response_text}"
             )
-            metrics.unauthorized_metric.inc()
             raise UnauthorizedError
         if response.status != 200:
             log.error(
