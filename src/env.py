@@ -9,6 +9,8 @@ TG_TOKEN_VAR_NAME = "TELEGRAM_TOKEN"
 DEBUG_VAR_NAME = "DEBUG"
 ENCRYPTION_KEY_VAR_NAME = "ENCRYPTION"
 IP_CHECK_VAR_NAME = "IP_CHECK"
+ENABLE_PROMETHEUS_METRICS_SERVER_VAR_NAME = "ENABLE_PROMETHEUS_METRICS_SERVER"
+PROMETHEUS_METRICS_SERVER_PORT_VAR_NAME = "PROMETHEUS_METRICS_SERVER_PORT"
 
 DEV_PROFILE_NAME = "DEV"
 PROD_PROFILE_NAME = "PROD"
@@ -32,6 +34,10 @@ def get_encryption_key() -> str | None:
     return os.environ.get(ENCRYPTION_KEY_VAR_NAME, default=None)
 
 
+def get_prometheus_metrics_server_port() -> int:
+    return os.environ.get(PROMETHEUS_METRICS_SERVER_PORT_VAR_NAME, default=53000)
+
+
 def is_ip_check_enabled() -> bool:
     return os.environ.get(IP_CHECK_VAR_NAME) is not None
 
@@ -46,3 +52,7 @@ def is_prod_profile() -> bool:
 
 def is_debug() -> bool:
     return os.environ.get(DEBUG_VAR_NAME) is not None
+
+
+def is_prometheus_metrics_server_enabled() -> bool:
+    return os.environ.get(ENABLE_PROMETHEUS_METRICS_SERVER_VAR_NAME) is not None

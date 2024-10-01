@@ -1,7 +1,7 @@
 services:
   samowarium:
     build: .
-    image: vzalygin/samowarium:${DOCKER_TAG}
+    image: vzalygin/samowarium:${DOCKER_TAG:-latest}
     working_dir: /samowarium
     env_file:
       - .env
@@ -13,6 +13,8 @@ services:
     command:
       - samowarium.py
     restart: unless-stopped
+    ports:
+      - 53000:53000
 
 volumes:
   db:

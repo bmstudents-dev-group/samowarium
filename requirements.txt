@@ -7,3 +7,5 @@ python-dateutil==2.9.0
 yoyo-migrations==8.2.0
 pycryptodome==3.20.0
 setuptools==74.1.2
+prometheus-client==0.16.0
+prometheus-summary==0.1.2

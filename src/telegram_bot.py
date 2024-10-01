@@ -8,6 +8,7 @@ from client_handler import ClientHandler
 from const import MARKDOWN_FORMAT, TELEGRAM_SEND_RETRY_DELAY_SEC
 from database import Database
 import env
+import metrics
 
 START_PROMPT = "Выдать доступ боту до почты :\n/login _логин_ _пароль_\n\nОтозвать доступ:\n/stop\n\nFAQ:\n/about"
 STOP_PROMPT = "Доступ отозван. Логин и сессия были удалены."
@@ -142,6 +143,7 @@ class TelegramBot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         log.debug(f"received /start from {update.effective_user.id}")
+        metrics.incoming_commands_metric.labels(command_name="start").inc()
         await update.message.reply_markdown(START_PROMPT)
 
     async def stop_command(
@@ -153,12 +155,14 @@ class TelegramBot:
         self.db.remove_client(
             telegram_id
         )  # TODO: не удалять запись, а удалять только контекст и пароль
+        metrics.incoming_commands_metric.labels(command_name="stop").inc()
         await update.message.reply_markdown(STOP_PROMPT)
 
     async def login_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         log.debug(f"received /login from {update.effective_user.id}")
+        metrics.incoming_commands_metric.labels(command_name="login").inc()
         if context.args is None or len(context.args) != 2:
             log.debug(
                 f"client {update.effective_user.id} entered login and password in wrong format"
@@ -225,6 +229,7 @@ class TelegramBot:
     async def about_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
+        metrics.incoming_commands_metric.labels(command_name="about").inc()
         await update.message.reply_markdown(
             ABOUT_PROMPT.format(env.get_profile(), env.get_version())
         )
@@ -238,6 +243,7 @@ class TelegramBot:
     ) -> None:
         is_sent = False
         log.debug(f'sending message "{message}" to {telegram_id} ...')
+        metrics.sent_message_metric.inc()
         while not is_sent:
             try:
                 for shift in range(0, len(message), MAX_TELEGRAM_MESSAGE_LENGTH):

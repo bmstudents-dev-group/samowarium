@@ -11,3 +11,8 @@ RUN pip install -r requirements.txt
 
 COPY ./migrations ./migrations
 COPY ./src .
+
+# port for prometheus metric server
+EXPOSE 53000
+
+ENTRYPOINT [ "python3", "samowarium.py" ]

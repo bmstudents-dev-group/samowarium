@@ -29,7 +29,7 @@ class Encrypter:
             self.encryption_key = SHA256.new(
                 self.encryption_key.encode("utf-8")
             ).digest()
-        log.info("encrypter initialized")
+        log.info("encrypter has initialized")
 
     def encrypt(self, data: str) -> bytes:
         raw = str.encode(pad(data), encoding="utf-8")
