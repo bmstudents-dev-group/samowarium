@@ -30,6 +30,9 @@ revalidation_metric = Counter(
 )
 logout_metric = Counter("logout", "Logout events metric")
 forced_logout_metric = Counter("forced_logout", "Forced logout events metric")
-client_handler_errors_metric = Counter(
+client_handler_error_metric = Counter(
     "client_handler_error", "Client handler error events metric", labelnames=["type"]
+)
+incoming_letter_metric = Counter(
+    "incoming_letter", "Incoming letter events metric"
 )

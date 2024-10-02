@@ -25,7 +25,8 @@ from metrics import (
     forced_logout_metric,
     relogin_metric,
     revalidation_metric,
-    client_handler_errors_metric,
+    client_handler_error_metric,
+    incoming_letter_metric,
 )
 
 REVALIDATE_INTERVAL = timedelta(hours=5)
@@ -115,6 +116,7 @@ class ClientHandler:
                             polling_context
                         )
                         for mail_header in mails:
+                            incoming_letter_metric.inc()
                             log.info(f"new mail for {self.context.samoware_login}")
                             log.debug(f"email flags: {mail_header.flags}")
                             mail_body = await samoware_api.get_mail_body_by_id(
@@ -143,7 +145,7 @@ class ClientHandler:
                 except asyncio.CancelledError:
                     return
                 except UnauthorizedError as error:
-                    client_handler_errors_metric.labels(type=type(error).__name__).inc()
+                    client_handler_error_metric.labels(type=type(error).__name__).inc()
                     log.info(f"session for {self.context.samoware_login} expired")
                     samoware_password = self.db.get_password(self.context.telegram_id)
                     if samoware_password is None:
@@ -164,7 +166,7 @@ class ClientHandler:
                     log.warning(
                         f"retry_count={retry_count}. ClientOSError. Probably Broken pipe. Retrying in {HTTP_RETRY_DELAY_SEC} seconds. {str(error)}"
                     )
-                    client_handler_errors_metric.labels(type=type(error).__name__).inc()
+                    client_handler_error_metric.labels(type=type(error).__name__).inc()
                     retry_count += 1
                     await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
                 except Exception as error:
@@ -172,7 +174,7 @@ class ClientHandler:
                     log.warning(
                         f"retry_count={retry_count}. Retrying longpolling for {self.context.samoware_login} in {HTTP_RETRY_DELAY_SEC} seconds..."
                     )
-                    client_handler_errors_metric.labels(type=type(error).__name__).inc()
+                    client_handler_error_metric.labels(type=type(error).__name__).inc()
                     retry_count += 1
                     await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
         finally:
@@ -195,7 +197,7 @@ class ClientHandler:
                 return True
             except UnauthorizedError as error:
                 log.info(f"unsuccessful login for user {self.context.samoware_login}")
-                client_handler_errors_metric.labels(type=type(error).__name__).inc()
+                client_handler_error_metric.labels(type=type(error).__name__).inc()
                 return False
             except asyncio.CancelledError:
                 log.info("login cancelled")
@@ -204,7 +206,7 @@ class ClientHandler:
                 log.exception(
                     f"retry_count={retry_count}. exception on login. retrying in {HTTP_RETRY_DELAY_SEC}..."
                 )
-                client_handler_errors_metric.labels(type=type(error).__name__).inc()
+                client_handler_error_metric.labels(type=type(error).__name__).inc()
                 retry_count += 1
                 await asyncio.sleep(HTTP_RETRY_DELAY_SEC)
 
@@ -228,7 +230,7 @@ class ClientHandler:
             return True
         except UnauthorizedError as error:
             log.exception("UnauthorizedError on revalidation")
-            client_handler_errors_metric.labels(type=type(error).__name__).inc()
+            client_handler_error_metric.labels(type=type(error).__name__).inc()
             return False
 
     async def can_not_revalidate(self):
